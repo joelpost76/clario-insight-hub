@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Building2, Settings } from "lucide-react";
+import { LogOut, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import unburntLogo from "@/assets/unburnt-clario-logo.png";
+import { CreateFirstWorkspace } from "@/components/onboarding/CreateFirstWorkspace";
 
 export default function NoWorkspace() {
   const navigate = useNavigate();
@@ -35,14 +36,43 @@ export default function NoWorkspace() {
     }
   };
 
+  // For admins without a workspace, show the onboarding flow directly
+  if (isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-muted/50 p-8">
+        <img
+          src={unburntLogo}
+          alt="Unburnt Clario"
+          className="mb-8 h-16 w-auto"
+        />
+
+        <CreateFirstWorkspace />
+
+        <Button
+          variant="link"
+          onClick={handleSignOut}
+          className="mt-6 text-muted-foreground"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign out
+        </Button>
+
+        <p className="mt-4 text-sm text-muted-foreground">
+          From smoke to source. Then we build the fix.
+        </p>
+      </div>
+    );
+  }
+
+  // Non-admin users without a workspace
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/50 p-8">
-      <img 
-        src={unburntLogo} 
-        alt="Unburnt Clario" 
+      <img
+        src={unburntLogo}
+        alt="Unburnt Clario"
         className="mb-8 h-16 w-auto"
       />
-      
+
       <Card className="w-full max-w-md text-center">
         <CardHeader>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -55,32 +85,17 @@ export default function NoWorkspace() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {isAdmin
-              ? "You're signed in as an admin, but this user isn't assigned to a workspace yet. Use the Admin Dashboard to create a workspace and add yourself as a member."
-              : "This user isn't assigned to a workspace yet. Once you're added, you'll be able to participate in the diagnostic process."}
+            Please contact your administrator to get access. Once you're added,
+            you'll be able to participate in the diagnostic process.
           </p>
-          
-          {isAdmin && (
-            <Button 
-              onClick={() => navigate("/admin")}
-              className="w-full"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Go to Admin Dashboard
-            </Button>
-          )}
-          
-          <Button 
-            variant="outline" 
-            onClick={handleSignOut}
-            className="w-full"
-          >
+
+          <Button variant="outline" onClick={handleSignOut} className="w-full">
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
           </Button>
         </CardContent>
       </Card>
-      
+
       <p className="mt-8 text-sm text-muted-foreground">
         From smoke to source. Then we build the fix.
       </p>
