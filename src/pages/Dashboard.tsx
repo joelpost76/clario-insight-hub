@@ -1,18 +1,19 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  FileStack, 
-  Users, 
-  BarChart3, 
   Check, 
   Circle,
   ArrowRight,
-  Calendar
+  Calendar,
+  FileStack,
+  Users,
+  BarChart3
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GateItem {
   id: string;
@@ -29,189 +30,205 @@ interface NextAction {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [dayNumber] = useState(1);
+  const { workspace, workspaceId, completionStatus } = useWorkspace();
 
-  // Placeholder stats - will be populated from database
-  const [stats] = useState({
-    artifacts: 0,
-    interviews: 0,
-    surveyResponses: 0,
+  // Fetch counts for stats
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats", workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return { artifacts: 0, interviews: 0, surveyResponses: 0 };
+      
+      const [artifactsRes, interviewsRes, surveyRes] = await Promise.all([
+        supabase.from("artifacts").select("id", { count: "exact" }).eq("workspace_id", workspaceId),
+        supabase.from("interviews").select("id", { count: "exact" }).eq("workspace_id", workspaceId),
+        supabase.from("surveys").select("response_count").eq("workspace_id", workspaceId).maybeSingle(),
+      ]);
+
+      return {
+        artifacts: artifactsRes.count ?? 0,
+        interviews: interviewsRes.count ?? 0,
+        surveyResponses: surveyRes.data?.response_count ?? 0,
+      };
+    },
+    enabled: !!workspaceId,
   });
 
   const gates: GateItem[] = [
-    { id: "kickoff", label: "Kickoff outcomes + scope saved", complete: false, url: "/kickoff" },
-    { id: "intake", label: "Intake captured", complete: false, url: "/intake" },
-    { id: "artifacts", label: "Artifacts added", complete: false, url: "/artifacts" },
-    { id: "interviews", label: "Interview roster created", complete: false, url: "/interviews" },
-    { id: "sipoc", label: "SIPOC created", complete: false, url: "/sipoc" },
-    { id: "workflow", label: "Workflow captured", complete: false, url: "/workflow" },
-    { id: "baseline", label: "Flow baseline started", complete: false, url: "/baseline" },
+    { id: "kickoff", label: "Kickoff outcomes + scope saved", complete: completionStatus.kickoff, url: "/kickoff" },
+    { id: "intake", label: "Intake captured", complete: completionStatus.intake, url: "/intake" },
+    { id: "artifacts", label: "Artifacts uploaded/linked", complete: completionStatus.artifacts, url: "/artifacts" },
+    { id: "interviews", label: "Interview roster created", complete: completionStatus.interviews, url: "/interviews" },
+    { id: "survey", label: "Team survey configured", complete: completionStatus.survey, url: "/survey" },
+    { id: "sipoc", label: "SIPOC created", complete: completionStatus.sipoc, url: "/sipoc" },
+    { id: "workflow", label: "Workflow captured", complete: completionStatus.workflow, url: "/workflow" },
+    { id: "baseline", label: "Flow baseline started", complete: completionStatus.baseline, url: "/baseline" },
   ];
 
   const nextActions: NextAction[] = gates
-    .filter((g) => !g.complete)
+    .filter((gate) => !gate.complete)
     .slice(0, 3)
-    .map((g) => ({
-      label: g.label.split(" ")[0],
-      description: g.label,
-      url: g.url,
+    .map((gate) => ({
+      label: gate.label.replace(" + ", " and ").replace("saved", "").replace("created", "").replace("captured", "").trim(),
+      description: `Complete the ${gate.id} section`,
+      url: gate.url,
     }));
 
-  const completionStatus = gates.reduce((acc, gate) => {
-    acc[gate.url] = gate.complete;
-    return acc;
-  }, {} as Record<string, boolean>);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setLoading(false);
-      }
-    };
-    checkAuth();
-  }, [navigate]);
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
+  const completedCount = gates.filter((g) => g.complete).length;
+  const allComplete = completedCount === gates.length;
 
   return (
-    <AppLayout completionStatus={completionStatus} dayNumber={dayNumber}>
-      <div className="mx-auto max-w-5xl animate-fade-in space-y-6">
+    <AppLayout>
+      <div className="mx-auto max-w-5xl space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-semibold">Workspace Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Clario™ Diagnostic Workspace
+          </h1>
           <p className="mt-1 text-muted-foreground">
-            Track your Clario™ Diagnostic progress. Complete each gate to finish on time.
+            From smoke to source. Then we build the fix.
           </p>
         </div>
 
-        {/* Day Counter + Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stats Row */}
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">Day {dayNumber}</p>
-                <p className="text-xs text-muted-foreground">of 10 business days</p>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Day</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{workspace?.day_counter ?? 1}</div>
+              <p className="text-xs text-muted-foreground">of 10</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
-                <FileStack className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{stats.artifacts}</p>
-                <p className="text-xs text-muted-foreground">Artifacts</p>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Artifacts</CardTitle>
+              <FileStack className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.artifacts ?? 0}</div>
+              <p className="text-xs text-muted-foreground">uploaded</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
-                <Users className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{stats.interviews}</p>
-                <p className="text-xs text-muted-foreground">Interviews</p>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Interviews</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.interviews ?? 0}</div>
+              <p className="text-xs text-muted-foreground">scheduled</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary">
-                <BarChart3 className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{stats.surveyResponses}</p>
-                <p className="text-xs text-muted-foreground">Survey responses</p>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Survey Responses</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.surveyResponses ?? 0}</div>
+              <p className="text-xs text-muted-foreground">received</p>
             </CardContent>
           </Card>
         </div>
 
+        {/* Two Column Layout */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Completion Gates */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader>
               <CardTitle className="text-lg">Completion Gates</CardTitle>
               <CardDescription>
-                Each gate must be passed before the diagnostic completes.
+                {completedCount} of {gates.length} complete
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-3">
+              <div className="space-y-3">
                 {gates.map((gate) => (
-                  <li
+                  <button
                     key={gate.id}
-                    className="flex items-center gap-3 text-sm"
+                    onClick={() => navigate(gate.url)}
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
                   >
                     {gate.complete ? (
                       <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
                         <Check className="h-3 w-3 text-primary-foreground" />
                       </div>
                     ) : (
-                      <Circle className="h-5 w-5 text-muted-foreground/40" />
+                      <Circle className="h-5 w-5 text-muted-foreground/50" />
                     )}
                     <span className={gate.complete ? "text-foreground" : "text-muted-foreground"}>
                       {gate.label}
                     </span>
-                  </li>
+                  </button>
                 ))}
-              </ul>
+              </div>
             </CardContent>
           </Card>
 
           {/* Next Actions */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader>
               <CardTitle className="text-lg">Next Actions</CardTitle>
               <CardDescription>
-                What we need from you to keep moving forward.
+                {allComplete ? "All gates complete!" : "Focus on these next"}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {nextActions.length > 0 ? (
-                <ul className="space-y-3">
-                  {nextActions.map((action, index) => (
-                    <li key={index}>
-                      <Button
-                        variant="ghost"
-                        className="h-auto w-full justify-between p-3 text-left hover:bg-secondary"
-                        onClick={() => navigate(action.url)}
-                      >
-                        <div>
-                          <p className="font-medium">{action.label}</p>
-                          <p className="text-xs text-muted-foreground">{action.description}</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+              {allComplete ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Check className="h-6 w-6 text-primary" />
+                  </div>
+                  <p className="font-medium">Diagnostic Complete</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    All sections have been completed. Ready for readout.
+                  </p>
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  All gates complete. Ready for review.
-                </p>
+                <div className="space-y-3">
+                  {nextActions.map((action, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      className="h-auto w-full justify-between p-4 text-left"
+                      onClick={() => navigate(action.url)}
+                    >
+                      <div>
+                        <p className="font-medium">{action.label}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {action.description}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0" />
+                    </Button>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Readout Date */}
+        {workspace?.readout_date && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="flex items-center gap-4 py-4">
+              <Calendar className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium">Readout Scheduled</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(workspace.readout_date).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );
