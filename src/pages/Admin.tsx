@@ -438,7 +438,14 @@ export default function Admin() {
                       </TableRow>
                     ) : (
                       workspaces.map((workspace) => (
-                        <TableRow key={workspace.id}>
+                        <TableRow 
+                          key={workspace.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => {
+                            setSelectedWorkspaceId(workspace.id);
+                            setActiveTab("members");
+                          }}
+                        >
                           <TableCell className="font-medium">{workspace.account_name || "Unknown"}</TableCell>
                           <TableCell>{workspace.type}</TableCell>
                           <TableCell>
@@ -456,7 +463,10 @@ export default function Admin() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteWorkspace(workspace.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteWorkspace(workspace.id);
+                              }}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
