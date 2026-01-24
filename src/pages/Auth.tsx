@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import unburntLogo from "@/assets/unburnt-clario-logo.png";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -107,84 +108,122 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <span className="text-xl font-bold text-primary-foreground">U</span>
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground">Unburnt</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Clario™ Portal</p>
+    <div className="flex min-h-screen">
+      {/* Left panel - Branding */}
+      <div className="hidden w-1/2 flex-col justify-between bg-foreground p-12 lg:flex">
+        <div>
+          <img 
+            src={unburntLogo} 
+            alt="Unburnt Clario" 
+            className="h-12 w-auto brightness-0 invert"
+          />
         </div>
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl">
-              {isLogin ? "Sign in" : "Create account"}
-            </CardTitle>
-            <CardDescription>
-              {isLogin
-                ? "Enter your credentials to access your workspace"
-                : "Enter your details to get started"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className={errors.email ? "border-destructive" : ""}
-                />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className={errors.password ? "border-destructive" : ""}
-                />
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password}</p>
-                )}
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Please wait..." : isLogin ? "Sign in" : "Create account"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                {isLogin
-                  ? "Don't have an account? Create one"
-                  : "Already have an account? Sign in"}
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <div className="space-y-6">
+          <blockquote className="space-y-2">
+            <p className="text-lg font-light leading-relaxed text-background/90">
+              "The system exists to protect the people — not the other way around."
+            </p>
+          </blockquote>
+          <div className="space-y-1">
+            <p className="text-sm font-medium uppercase tracking-widest text-primary">
+              Core Belief
+            </p>
+            <p className="text-sm text-background/60">
+              Rooted · Clear · Unshakeable · Sharp · Humane
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-background/40">
           From smoke to source. Then we build the fix.
         </p>
+      </div>
+
+      {/* Right panel - Auth form */}
+      <div className="flex w-full flex-col justify-center bg-background p-8 lg:w-1/2">
+        <div className="mx-auto w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="mb-8 lg:hidden">
+            <img 
+              src={unburntLogo} 
+              alt="Unburnt Clario" 
+              className="h-10 w-auto"
+            />
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              {isLogin ? "Welcome back" : "Get started"}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {isLogin
+                ? "Sign in to access your Clario™ workspace"
+                : "Create your account to begin the diagnostic"}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className={`h-11 ${errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className={`h-11 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+              />
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password}</p>
+              )}
+            </div>
+            <Button 
+              type="submit" 
+              className="h-11 w-full font-medium" 
+              disabled={loading}
+            >
+              {loading ? "Please wait..." : isLogin ? "Sign in" : "Create account"}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+              }}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {isLogin
+                ? "Don't have an account? Create one"
+                : "Already have an account? Sign in"}
+            </button>
+          </div>
+
+          <p className="mt-8 text-center text-xs text-muted-foreground lg:hidden">
+            From smoke to source. Then we build the fix.
+          </p>
+        </div>
       </div>
     </div>
   );
