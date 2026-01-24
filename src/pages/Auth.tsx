@@ -115,7 +115,7 @@ export default function Auth() {
           <img 
             src={unburntLogo} 
             alt="Unburnt Clario" 
-            className="h-12 w-auto brightness-0 invert"
+            className="h-20 w-auto"
           />
         </div>
         <div className="space-y-6">
@@ -146,7 +146,7 @@ export default function Auth() {
             <img 
               src={unburntLogo} 
               alt="Unburnt Clario" 
-              className="h-10 w-auto"
+              className="h-14 w-auto"
             />
           </div>
 
