@@ -8,7 +8,7 @@ interface RequireWorkspaceProps {
 }
 
 export function RequireWorkspace({ children }: RequireWorkspaceProps) {
-  const { user, workspaceId, loading } = useWorkspace();
+  const { user, workspaceId, loading, userRole } = useWorkspace();
 
   if (loading) {
     return (
@@ -23,6 +23,11 @@ export function RequireWorkspace({ children }: RequireWorkspaceProps) {
   }
 
   if (!workspaceId) {
+    // Allow admins to always get into the app to create/manage workspaces.
+    if (userRole === "unburnt_admin") {
+      return <Navigate to="/admin" replace />;
+    }
+
     return <Navigate to="/no-workspace" replace />;
   }
 

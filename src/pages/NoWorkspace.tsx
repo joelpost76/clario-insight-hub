@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,16 @@ import unburntLogo from "@/assets/unburnt-clario-logo.png";
 export default function NoWorkspace() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userRole } = useWorkspace();
+  const { userRole, workspaceId, user, loading } = useWorkspace();
 
   const isAdmin = userRole === "unburnt_admin";
+
+  // If membership exists (e.g., seeded or just assigned), don't leave the user stuck here.
+  useEffect(() => {
+    if (!loading && user && workspaceId) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [loading, user, workspaceId, navigate]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -47,8 +55,9 @@ export default function NoWorkspace() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Please contact your administrator to get access to a workspace. Once you're added, 
-            you'll be able to participate in the diagnostic process.
+            {isAdmin
+              ? "You're signed in as an admin, but this user isn't assigned to a workspace yet. Use the Admin Dashboard to create a workspace and add yourself as a member."
+              : "This user isn't assigned to a workspace yet. Once you're added, you'll be able to participate in the diagnostic process."}
           </p>
           
           {isAdmin && (

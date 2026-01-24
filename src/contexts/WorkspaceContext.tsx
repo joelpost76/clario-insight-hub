@@ -37,6 +37,67 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   });
   const navigate = useNavigate();
 
+  const fetchUserData = async (userId: string) => {
+    try {
+      // Fetch user role and workspace membership in parallel
+      const [roleResult, membershipResult] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("workspace_members")
+          .select("workspace_id")
+          .eq("user_id", userId)
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      // Set user role
+      if (roleResult.data?.role) {
+        setUserRole(roleResult.data.role as AppRole);
+      } else {
+        setUserRole(null);
+      }
+
+      // Handle workspace membership
+      const wsId = membershipResult.data?.workspace_id ?? null;
+      if (!wsId) {
+        setWorkspaceId(null);
+        setWorkspace(null);
+        return;
+      }
+
+      setWorkspaceId(wsId);
+
+      // Fetch workspace details
+      const { data: workspaceData, error: workspaceError } = await supabase
+        .from("workspaces")
+        .select("*")
+        .eq("id", wsId)
+        .maybeSingle();
+
+      if (workspaceError) {
+        // Keep workspaceId, but avoid blocking the UI with a stale workspace object
+        console.error("Failed to load workspace", workspaceError);
+        setWorkspace(null);
+        return;
+      }
+
+      if (workspaceData) {
+        setWorkspace(workspaceData as unknown as Workspace);
+      }
+    } catch (err) {
+      console.error("Failed to fetch user workspace data", err);
+      setUserRole(null);
+      setWorkspaceId(null);
+      setWorkspace(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const refreshWorkspace = async () => {
     if (!workspaceId) return;
     
@@ -118,71 +179,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setWorkspaceId(null);
         setUserRole(null);
         setLoading(false);
+        return;
       }
+
+      // When a user signs in, we must re-hydrate role + workspace state.
+      setLoading(true);
+      void fetchUserData(session.user.id);
     });
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Fetch user's role and workspace membership
-        setTimeout(() => {
-          fetchUserData(session.user.id);
-        }, 0);
-      } else {
+
+      if (!session?.user) {
         setLoading(false);
+        return;
       }
+
+      setLoading(true);
+      void fetchUserData(session.user.id);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchUserData = async (userId: string) => {
-    // Fetch user role and workspace membership in parallel
-    const [roleResult, membershipResult] = await Promise.all([
-      supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("workspace_members")
-        .select("workspace_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    // Set user role
-    if (roleResult.data) {
-      setUserRole(roleResult.data.role as AppRole);
-    }
-
-    // Handle workspace membership
-    if (membershipResult.error || !membershipResult.data) {
-      // User has no workspace yet - this is okay for new users
-      setLoading(false);
-      return;
-    }
-
-    const wsId = membershipResult.data.workspace_id;
-    setWorkspaceId(wsId);
-
-    // Fetch workspace details
-    const { data: workspaceData, error: workspaceError } = await supabase
-      .from("workspaces")
-      .select("*")
-      .eq("id", wsId)
-      .maybeSingle();
-
-    if (!workspaceError && workspaceData) {
-      setWorkspace(workspaceData as unknown as Workspace);
-    }
-
-    setLoading(false);
-  };
 
   // Refresh completion status when workspace changes
   useEffect(() => {
