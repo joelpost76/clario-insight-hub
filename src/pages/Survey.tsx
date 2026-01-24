@@ -1,192 +1,216 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, Link as LinkIcon, Copy } from "lucide-react";
 
 export default function Survey() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { workspaceId, refreshCompletionStatus } = useWorkspace();
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [surveyId, setSurveyId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    workClarity: "",
-    handoffFriction: "",
-    reworkFrequency: "",
-    biggestBlocker: "",
-    improvementIdea: "",
+    share_link: "",
+    sent_at: "",
+    response_count: "",
+    burnout_risk_avg: "",
+    themes: "",
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setLoading(false);
-      }
-    };
-    checkAuth();
-  }, [navigate]);
+    if (workspaceId) {
+      loadSurvey();
+    }
+  }, [workspaceId]);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const loadSurvey = async () => {
+    if (!workspaceId) return;
+    
+    const { data, error } = await supabase
+      .from("surveys")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+
+    if (data) {
+      setSurveyId(data.id);
+      setFormData({
+        share_link: data.share_link ?? "",
+        sent_at: data.sent_at ?? "",
+        response_count: data.response_count?.toString() ?? "",
+        burnout_risk_avg: data.burnout_risk_avg?.toString() ?? "",
+        themes: (data.themes as string[])?.join(", ") ?? "",
+      });
+    }
+    setLoading(false);
   };
 
   const handleSave = async () => {
+    if (!workspaceId) return;
+
     setSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    toast({
-      title: "Saved",
-      description: "Survey response has been captured.",
-    });
+
+    const surveyData = {
+      workspace_id: workspaceId,
+      share_link: formData.share_link || null,
+      sent_at: formData.sent_at || null,
+      response_count: formData.response_count ? parseInt(formData.response_count) : 0,
+      burnout_risk_avg: formData.burnout_risk_avg ? parseFloat(formData.burnout_risk_avg) : null,
+      themes: formData.themes ? formData.themes.split(",").map((t) => t.trim()).filter(Boolean) : null,
+    };
+
+    let error;
+    if (surveyId) {
+      const result = await supabase
+        .from("surveys")
+        .update(surveyData)
+        .eq("id", surveyId);
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from("surveys")
+        .insert(surveyData)
+        .select()
+        .single();
+      error = result.error;
+      if (result.data) {
+        setSurveyId(result.data.id);
+      }
+    }
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Survey saved",
+        description: "Survey settings have been saved.",
+      });
+      await refreshCompletionStatus();
+    }
+
     setSaving(false);
+  };
+
+  const copyToClipboard = () => {
+    if (formData.share_link) {
+      navigator.clipboard.writeText(formData.share_link);
+      toast({
+        title: "Copied",
+        description: "Survey link copied to clipboard.",
+      });
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
+      <AppLayout>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
     );
   }
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-3xl animate-fade-in space-y-6">
+      <div className="mx-auto max-w-3xl space-y-8">
         <div>
-          <h1 className="text-2xl font-semibold">Team Survey</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Team Survey</h1>
           <p className="mt-1 text-muted-foreground">
-            Quick pulse check from the team. Responses help triangulate interview findings.
+            Symptom Snapshot. Short pulse. We use it to spot patterns and burnout risk signals.
           </p>
         </div>
 
         <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Work Clarity</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg">Share Link</CardTitle>
             <CardDescription>
-              How clear is the work that comes to you?
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={formData.workClarity}
-              onValueChange={(value) => handleChange("workClarity", value)}
-              className="grid gap-3"
-            >
-              {[
-                { value: "1", label: "Very unclear — I often have to ask for more info" },
-                { value: "2", label: "Somewhat unclear — Sometimes I can proceed, sometimes not" },
-                { value: "3", label: "Neutral — About 50/50" },
-                { value: "4", label: "Mostly clear — Rarely need clarification" },
-                { value: "5", label: "Very clear — I can start immediately" },
-              ].map((option) => (
-                <div key={option.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.value} id={`clarity-${option.value}`} />
-                  <Label htmlFor={`clarity-${option.value}`} className="font-normal cursor-pointer">
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Handoff Friction</CardTitle>
-            <CardDescription>
-              How smooth are handoffs between you and other people/teams?
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={formData.handoffFriction}
-              onValueChange={(value) => handleChange("handoffFriction", value)}
-              className="grid gap-3"
-            >
-              {[
-                { value: "1", label: "Very rough — Constant back-and-forth" },
-                { value: "2", label: "Somewhat rough — Regular delays or confusion" },
-                { value: "3", label: "Neutral — Some friction, but manageable" },
-                { value: "4", label: "Mostly smooth — Occasional hiccups" },
-                { value: "5", label: "Very smooth — Seamless transitions" },
-              ].map((option) => (
-                <div key={option.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.value} id={`handoff-${option.value}`} />
-                  <Label htmlFor={`handoff-${option.value}`} className="font-normal cursor-pointer">
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Rework Frequency</CardTitle>
-            <CardDescription>
-              How often do you have to redo work because of changes, errors, or unclear requirements?
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={formData.reworkFrequency}
-              onValueChange={(value) => handleChange("reworkFrequency", value)}
-              className="grid gap-3"
-            >
-              {[
-                { value: "1", label: "Almost never — Rework is rare" },
-                { value: "2", label: "Occasionally — Maybe once a week" },
-                { value: "3", label: "Regularly — A few times a week" },
-                { value: "4", label: "Frequently — Daily occurrence" },
-                { value: "5", label: "Constantly — Most work requires revision" },
-              ].map((option) => (
-                <div key={option.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.value} id={`rework-${option.value}`} />
-                  <Label htmlFor={`rework-${option.value}`} className="font-normal cursor-pointer">
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Open Feedback</CardTitle>
-            <CardDescription>
-              Your perspective in your own words.
+              The survey link to share with the team. This can be an external survey tool link.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="https://forms.google.com/... or similar"
+                  value={formData.share_link}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, share_link: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+              {formData.share_link && (
+                <Button variant="outline" size="icon" onClick={copyToClipboard}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="biggestBlocker">What's the single biggest blocker in your work?</Label>
-              <Textarea
-                id="biggestBlocker"
-                placeholder="Describe the thing that slows you down most..."
-                rows={3}
-                value={formData.biggestBlocker}
-                onChange={(e) => handleChange("biggestBlocker", e.target.value)}
+              <Label htmlFor="sent_at">Sent date (optional)</Label>
+              <Input
+                id="sent_at"
+                type="date"
+                value={formData.sent_at}
+                onChange={(e) => setFormData((prev) => ({ ...prev, sent_at: e.target.value }))}
               />
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Response Summary</CardTitle>
+            <CardDescription>
+              Track responses and key metrics from the survey.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="response_count">Response count</Label>
+                <Input
+                  id="response_count"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.response_count}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, response_count: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="burnout_risk_avg">Burnout risk avg (0–10)</Label>
+                <Input
+                  id="burnout_risk_avg"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  placeholder="e.g., 6.5"
+                  value={formData.burnout_risk_avg}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, burnout_risk_avg: e.target.value }))}
+                />
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="improvementIdea">If you could fix one thing, what would it be?</Label>
-              <Textarea
-                id="improvementIdea"
-                placeholder="Your idea for improvement..."
-                rows={3}
-                value={formData.improvementIdea}
-                onChange={(e) => handleChange("improvementIdea", e.target.value)}
+              <Label htmlFor="themes">Themes (comma-separated)</Label>
+              <Input
+                id="themes"
+                placeholder="missing inputs, rework, priority flips"
+                value={formData.themes}
+                onChange={(e) => setFormData((prev) => ({ ...prev, themes: e.target.value }))}
               />
             </div>
           </CardContent>
@@ -197,7 +221,11 @@ export default function Survey() {
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Submit Survey"}
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save survey
+          </Button>
+          <Button variant="secondary" onClick={() => navigate("/sipoc")}>
+            Next: SIPOC
           </Button>
         </div>
       </div>

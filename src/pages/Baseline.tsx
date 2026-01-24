@@ -1,61 +1,81 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Circle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Check, Circle, Loader2 } from "lucide-react";
 
 export default function Baseline() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { workspaceId, refreshCompletionStatus } = useWorkspace();
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [baselineId, setBaselineId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    wip: "",
-    wipNotes: "",
-    throughput: "",
-    throughputNotes: "",
-    leadTime: "",
-    leadTimeNotes: "",
-    reworkRate: "",
-    reworkNotes: "",
-    billingCycle: "",
-    billingNotes: "",
+    wip_count: "",
+    throughput_per_week: "",
+    lead_time_days: "",
+    rework_rate: "",
+    billing_cycle_days: "",
+    ar_aging_30: "",
+    ar_aging_60: "",
+    ar_aging_90: "",
+    confidence_level: "medium",
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth");
-      } else {
-        setLoading(false);
-      }
-    };
-    checkAuth();
-  }, [navigate]);
+    if (workspaceId) {
+      loadBaseline();
+    }
+  }, [workspaceId]);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const loadBaseline = async () => {
+    if (!workspaceId) return;
+    
+    const { data, error } = await supabase
+      .from("flow_baselines")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+
+    if (data) {
+      setBaselineId(data.id);
+      setFormData({
+        wip_count: data.wip_count?.toString() ?? "",
+        throughput_per_week: data.throughput_per_week?.toString() ?? "",
+        lead_time_days: data.lead_time_days?.toString() ?? "",
+        rework_rate: data.rework_rate?.toString() ?? "",
+        billing_cycle_days: data.billing_cycle_days?.toString() ?? "",
+        ar_aging_30: data.ar_aging_30?.toString() ?? "",
+        ar_aging_60: data.ar_aging_60?.toString() ?? "",
+        ar_aging_90: data.ar_aging_90?.toString() ?? "",
+        confidence_level: data.confidence_level ?? "medium",
+      });
+    }
+    setLoading(false);
   };
 
   const completedFields = [
-    formData.wip,
-    formData.throughput,
-    formData.leadTime,
-    formData.reworkRate,
-    formData.billingCycle,
+    formData.wip_count,
+    formData.throughput_per_week,
+    formData.lead_time_days,
+    formData.rework_rate,
+    formData.billing_cycle_days,
   ].filter((v) => v.trim() !== "").length;
 
   const isComplete = completedFields >= 3;
 
   const handleSave = async () => {
+    if (!workspaceId) return;
+
     if (!isComplete) {
       toast({
         title: "More data needed",
@@ -66,67 +86,111 @@ export default function Baseline() {
     }
 
     setSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    toast({
-      title: "Saved",
-      description: "Flow baseline has been saved.",
-    });
+
+    const baselineData = {
+      workspace_id: workspaceId,
+      wip_count: formData.wip_count ? parseInt(formData.wip_count) : null,
+      throughput_per_week: formData.throughput_per_week ? parseFloat(formData.throughput_per_week) : null,
+      lead_time_days: formData.lead_time_days ? parseFloat(formData.lead_time_days) : null,
+      rework_rate: formData.rework_rate ? parseFloat(formData.rework_rate) : null,
+      billing_cycle_days: formData.billing_cycle_days ? parseFloat(formData.billing_cycle_days) : null,
+      ar_aging_30: formData.ar_aging_30 ? parseFloat(formData.ar_aging_30) : null,
+      ar_aging_60: formData.ar_aging_60 ? parseFloat(formData.ar_aging_60) : null,
+      ar_aging_90: formData.ar_aging_90 ? parseFloat(formData.ar_aging_90) : null,
+      confidence_level: formData.confidence_level,
+    };
+
+    let error;
+    if (baselineId) {
+      const result = await supabase
+        .from("flow_baselines")
+        .update(baselineData)
+        .eq("id", baselineId);
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from("flow_baselines")
+        .insert(baselineData)
+        .select()
+        .single();
+      error = result.error;
+      if (result.data) {
+        setBaselineId(result.data.id);
+      }
+    }
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Baseline saved",
+        description: "Flow baseline has been saved.",
+      });
+      await refreshCompletionStatus();
+    }
+
     setSaving(false);
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
-
   const metrics = [
     {
-      key: "wip",
+      key: "wip_count",
       label: "Work in Progress (WIP)",
-      placeholder: "e.g., 45 active projects",
+      placeholder: "e.g., 45",
       description: "How many items are currently in flight?",
-      notesKey: "wipNotes",
+      type: "number" as const,
     },
     {
-      key: "throughput",
+      key: "throughput_per_week",
       label: "Throughput",
-      placeholder: "e.g., 12 projects/month",
-      description: "How many items complete per time period?",
-      notesKey: "throughputNotes",
+      placeholder: "e.g., 12",
+      description: "How many items complete per week?",
+      type: "number" as const,
     },
     {
-      key: "leadTime",
-      label: "Lead Time",
-      placeholder: "e.g., 18 days average",
+      key: "lead_time_days",
+      label: "Lead Time (days)",
+      placeholder: "e.g., 18",
       description: "How long from request to delivery?",
-      notesKey: "leadTimeNotes",
+      type: "number" as const,
     },
     {
-      key: "reworkRate",
-      label: "Rework Rate",
-      placeholder: "e.g., 25% require revision",
+      key: "rework_rate",
+      label: "Rework Rate (%)",
+      placeholder: "e.g., 25",
       description: "What percentage of work needs to be redone?",
-      notesKey: "reworkNotes",
+      type: "number" as const,
     },
     {
-      key: "billingCycle",
-      label: "Billing Cycle Time",
-      placeholder: "e.g., 42 days to payment",
+      key: "billing_cycle_days",
+      label: "Billing Cycle (days)",
+      placeholder: "e.g., 42",
       description: "How long from completion to getting paid?",
-      notesKey: "billingNotes",
+      type: "number" as const,
     },
   ];
 
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
-      <div className="mx-auto max-w-3xl animate-fade-in space-y-6">
+      <div className="mx-auto max-w-3xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Flow Baseline</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Flow Baseline</h1>
           <p className="mt-1 text-muted-foreground">
-            Capture current flow metrics. At least 3 of 5 required to complete this gate.
+            We need rough baselines. Not perfect data. Enough to measure change.
           </p>
         </div>
 
@@ -151,7 +215,8 @@ export default function Baseline() {
         </Card>
 
         {metrics.map((metric) => {
-          const hasValue = formData[metric.key as keyof typeof formData].trim() !== "";
+          const value = formData[metric.key as keyof typeof formData];
+          const hasValue = value.trim() !== "";
           return (
             <Card key={metric.key}>
               <CardHeader className="pb-3">
@@ -167,24 +232,15 @@ export default function Baseline() {
                 </div>
                 <CardDescription className="ml-8">{metric.description}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
                 <div className="space-y-2">
                   <Label htmlFor={metric.key}>Current value</Label>
                   <Input
                     id={metric.key}
+                    type={metric.type}
                     placeholder={metric.placeholder}
-                    value={formData[metric.key as keyof typeof formData]}
-                    onChange={(e) => handleChange(metric.key, e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={metric.notesKey}>Notes (optional)</Label>
-                  <Textarea
-                    id={metric.notesKey}
-                    placeholder="Data source, caveats, or context..."
-                    rows={2}
-                    value={formData[metric.notesKey as keyof typeof formData]}
-                    onChange={(e) => handleChange(metric.notesKey, e.target.value)}
+                    value={value}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, [metric.key]: e.target.value }))}
                   />
                 </div>
               </CardContent>
@@ -192,12 +248,81 @@ export default function Baseline() {
           );
         })}
 
+        {/* Optional A/R Aging */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">A/R Aging (Optional)</CardTitle>
+            <CardDescription>Additional cash flow metrics if available.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="ar_aging_30">A/R &gt;30 days</Label>
+                <Input
+                  id="ar_aging_30"
+                  type="number"
+                  placeholder="$"
+                  value={formData.ar_aging_30}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, ar_aging_30: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ar_aging_60">A/R &gt;60 days</Label>
+                <Input
+                  id="ar_aging_60"
+                  type="number"
+                  placeholder="$"
+                  value={formData.ar_aging_60}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, ar_aging_60: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ar_aging_90">A/R &gt;90 days</Label>
+                <Input
+                  id="ar_aging_90"
+                  type="number"
+                  placeholder="$"
+                  value={formData.ar_aging_90}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, ar_aging_90: e.target.value }))}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Confidence Level */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Confidence Level</CardTitle>
+            <CardDescription>How confident are you in these numbers?</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={formData.confidence_level}
+              onValueChange={(v) => setFormData((prev) => ({ ...prev, confidence_level: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low — rough estimates</SelectItem>
+                <SelectItem value="medium">Medium — reasonably accurate</SelectItem>
+                <SelectItem value="high">High — data-backed</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => navigate("/dashboard")}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving || !isComplete}>
-            {saving ? "Saving..." : "Save Baseline"}
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Baseline
+          </Button>
+          <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
           </Button>
         </div>
       </div>
