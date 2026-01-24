@@ -110,17 +110,17 @@ export default function Auth() {
   return (
     <div className="flex min-h-screen">
       {/* Left panel - Branding */}
-      <div className="hidden w-1/2 flex-col justify-between bg-foreground p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-muted p-12 lg:flex">
         <div>
           <img 
             src={unburntLogo} 
             alt="Unburnt Clario" 
-            className="h-20 w-auto"
+            className="h-24 w-auto"
           />
         </div>
         <div className="space-y-6">
           <blockquote className="space-y-2">
-            <p className="text-lg font-light leading-relaxed text-background/90">
+            <p className="text-lg font-light leading-relaxed text-foreground/80">
               "The system exists to protect the people — not the other way around."
             </p>
           </blockquote>
@@ -128,12 +128,12 @@ export default function Auth() {
             <p className="text-sm font-medium uppercase tracking-widest text-primary">
               Core Belief
             </p>
-            <p className="text-sm text-background/60">
+            <p className="text-sm text-muted-foreground">
               Rooted · Clear · Unshakeable · Sharp · Humane
             </p>
           </div>
         </div>
-        <p className="text-sm text-background/40">
+        <p className="text-sm text-muted-foreground">
           From smoke to source. Then we build the fix.
         </p>
       </div>
