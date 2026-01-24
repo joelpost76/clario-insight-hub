@@ -2,13 +2,17 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Building2 } from "lucide-react";
+import { LogOut, Building2, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import unburntLogo from "@/assets/unburnt-clario-logo.png";
 
 export default function NoWorkspace() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { userRole } = useWorkspace();
+
+  const isAdmin = userRole === "unburnt_admin";
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -46,6 +50,17 @@ export default function NoWorkspace() {
             Please contact your administrator to get access to a workspace. Once you're added, 
             you'll be able to participate in the diagnostic process.
           </p>
+          
+          {isAdmin && (
+            <Button 
+              onClick={() => navigate("/admin")}
+              className="w-full"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Go to Admin Dashboard
+            </Button>
+          )}
+          
           <Button 
             variant="outline" 
             onClick={handleSignOut}
