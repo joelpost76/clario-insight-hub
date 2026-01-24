@@ -4,16 +4,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { Workspace, CompletionStatus, AppRole } from "@/types/database";
 
+const WORKSPACE_STORAGE_KEY = "selected_workspace_id";
+
+interface WorkspaceWithAccount extends Workspace {
+  account_name?: string;
+}
+
 interface WorkspaceContextType {
   user: User | null;
   session: Session | null;
-  workspace: Workspace | null;
+  workspace: WorkspaceWithAccount | null;
   workspaceId: string | null;
   userRole: AppRole | null;
   loading: boolean;
   completionStatus: CompletionStatus;
+  availableWorkspaces: WorkspaceWithAccount[];
   refreshWorkspace: () => Promise<void>;
   refreshCompletionStatus: () => Promise<void>;
+  switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -21,10 +29,11 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [workspace, setWorkspace] = useState<WorkspaceWithAccount | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [availableWorkspaces, setAvailableWorkspaces] = useState<WorkspaceWithAccount[]>([]);
   const [completionStatus, setCompletionStatus] = useState<CompletionStatus>({
     kickoff: false,
     intake: false,
@@ -39,8 +48,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      // Fetch user role and workspace membership in parallel
-      const [roleResult, membershipResult] = await Promise.all([
+      // Fetch user role and ALL workspace memberships in parallel
+      const [roleResult, membershipsResult] = await Promise.all([
         supabase
           .from("user_roles")
           .select("role")
@@ -49,9 +58,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         supabase
           .from("workspace_members")
           .select("workspace_id")
-          .eq("user_id", userId)
-          .limit(1)
-          .maybeSingle(),
+          .eq("user_id", userId),
       ]);
 
       // Set user role
@@ -61,41 +68,73 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setUserRole(null);
       }
 
-      // Handle workspace membership
-      const wsId = membershipResult.data?.workspace_id ?? null;
-      if (!wsId) {
+      // Handle workspace memberships
+      const workspaceIds = membershipsResult.data?.map((m) => m.workspace_id) ?? [];
+      
+      if (workspaceIds.length === 0) {
         setWorkspaceId(null);
         setWorkspace(null);
+        setAvailableWorkspaces([]);
         return;
       }
 
-      setWorkspaceId(wsId);
-
-      // Fetch workspace details
-      const { data: workspaceData, error: workspaceError } = await supabase
+      // Fetch all workspaces with account names
+      const { data: workspacesData, error: workspacesError } = await supabase
         .from("workspaces")
-        .select("*")
-        .eq("id", wsId)
-        .maybeSingle();
+        .select("*, accounts(name)")
+        .in("id", workspaceIds);
 
-      if (workspaceError) {
-        // Keep workspaceId, but avoid blocking the UI with a stale workspace object
-        console.error("Failed to load workspace", workspaceError);
+      if (workspacesError) {
+        console.error("Failed to load workspaces", workspacesError);
         setWorkspace(null);
+        setAvailableWorkspaces([]);
         return;
       }
 
-      if (workspaceData) {
-        setWorkspace(workspaceData as unknown as Workspace);
+      // Transform to include account_name
+      const workspacesWithAccount: WorkspaceWithAccount[] = (workspacesData || []).map((ws: any) => ({
+        ...ws,
+        account_name: ws.accounts?.name,
+      }));
+
+      setAvailableWorkspaces(workspacesWithAccount);
+
+      // Check for persisted workspace selection
+      const storedWorkspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+      let selectedWsId = storedWorkspaceId && workspaceIds.includes(storedWorkspaceId)
+        ? storedWorkspaceId
+        : workspaceIds[0];
+
+      setWorkspaceId(selectedWsId);
+      
+      const selectedWorkspace = workspacesWithAccount.find((ws) => ws.id === selectedWsId) || null;
+      setWorkspace(selectedWorkspace);
+      
+      // Persist the selection
+      if (selectedWsId) {
+        localStorage.setItem(WORKSPACE_STORAGE_KEY, selectedWsId);
       }
     } catch (err) {
       console.error("Failed to fetch user workspace data", err);
       setUserRole(null);
       setWorkspaceId(null);
       setWorkspace(null);
+      setAvailableWorkspaces([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchWorkspace = async (newWorkspaceId: string) => {
+    const targetWorkspace = availableWorkspaces.find((ws) => ws.id === newWorkspaceId);
+    if (!targetWorkspace) return;
+
+    setWorkspaceId(newWorkspaceId);
+    setWorkspace(targetWorkspace);
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, newWorkspaceId);
+    
+    // Navigate to dashboard to reload with new workspace context
+    navigate("/dashboard");
   };
 
   const refreshWorkspace = async () => {
@@ -221,8 +260,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         userRole,
         loading,
         completionStatus,
+        availableWorkspaces,
         refreshWorkspace,
         refreshCompletionStatus,
+        switchWorkspace,
       }}
     >
       {children}

@@ -26,7 +26,6 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import unburntLogo from "@/assets/unburnt-clario-logo.png";
 
 interface NavItem {
@@ -104,8 +104,13 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
       </SidebarHeader>
 
       <SidebarContent className="px-2">
+        {/* Workspace Switcher */}
+        <div className="mx-2 my-3">
+          <WorkspaceSwitcher />
+        </div>
+
         {!collapsed && (
-          <div className="mx-2 my-4 rounded-md bg-sidebar-accent p-3">
+          <div className="mx-2 mb-4 rounded-md bg-sidebar-accent p-3">
             <p className="text-xs font-medium text-sidebar-foreground">Day {dayNumber} of 10</p>
             <p className="mt-1 text-xs text-muted-foreground">Clario™ Diagnostic</p>
           </div>
