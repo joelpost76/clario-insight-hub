@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings } from "lucide-react";
+import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink } from "lucide-react";
 import { Account, Workspace } from "@/types/database";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface WorkspaceMemberWithProfile {
   id: string;
@@ -25,6 +26,7 @@ interface WorkspaceMemberWithProfile {
 
 export default function Admin() {
   const { toast } = useToast();
+  const { switchWorkspace } = useWorkspace();
   const [activeTab, setActiveTab] = useState("accounts");
 
   // Accounts state
@@ -177,6 +179,11 @@ export default function Admin() {
       toast({ title: "Workspace deleted" });
       fetchWorkspaces();
     }
+  };
+
+  // Enter workspace and navigate to dashboard
+  const handleEnterWorkspace = async (workspaceId: string) => {
+    await switchWorkspace(workspaceId);
   };
 
   // Add member to workspace
@@ -459,7 +466,19 @@ export default function Admin() {
                           </TableCell>
                           <TableCell>{workspace.day_counter}</TableCell>
                           <TableCell>{new Date(workspace.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
+                          <TableCell className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEnterWorkspace(workspace.id);
+                              }}
+                              className="text-primary hover:text-primary"
+                              title="Enter Workspace"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -468,6 +487,7 @@ export default function Admin() {
                                 handleDeleteWorkspace(workspace.id);
                               }}
                               className="text-destructive hover:text-destructive"
+                              title="Delete Workspace"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
