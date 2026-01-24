@@ -11,7 +11,8 @@ import {
   Activity,
   LogOut,
   Check,
-  Circle
+  Circle,
+  Settings
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -32,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import unburntLogo from "@/assets/unburnt-clario-logo.png";
 
 interface NavItem {
@@ -64,6 +66,9 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { userRole } = useWorkspace();
+
+  const isAdmin = userRole === "unburnt_admin";
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -151,6 +156,32 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin Section - only visible to unburnt_admin */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to="/admin" 
+                      end 
+                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+                      activeClassName="bg-sidebar-accent font-medium text-primary"
+                    >
+                      <Settings className="h-4 w-4" />
+                      {!collapsed && <span>Admin Dashboard</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-2">

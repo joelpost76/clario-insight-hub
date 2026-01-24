@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { RequireWorkspace } from "@/components/RequireWorkspace";
+import { RequireAdmin } from "@/components/RequireAdmin";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Kickoff from "./pages/Kickoff";
@@ -15,6 +16,7 @@ import Survey from "./pages/Survey";
 import SIPOC from "./pages/SIPOC";
 import Workflow from "./pages/Workflow";
 import Baseline from "./pages/Baseline";
+import Admin from "./pages/Admin";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +33,14 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/no-workspace" element={<NoWorkspace />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireAdmin>
+                  <Admin />
+                </RequireAdmin>
+              }
+            />
             <Route
               path="/dashboard"
               element={

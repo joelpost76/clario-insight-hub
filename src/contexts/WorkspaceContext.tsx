@@ -2,13 +2,14 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
-import { Workspace, CompletionStatus } from "@/types/database";
+import { Workspace, CompletionStatus, AppRole } from "@/types/database";
 
 interface WorkspaceContextType {
   user: User | null;
   session: Session | null;
   workspace: Workspace | null;
   workspaceId: string | null;
+  userRole: AppRole | null;
   loading: boolean;
   completionStatus: CompletionStatus;
   refreshWorkspace: () => Promise<void>;
@@ -22,6 +23,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [completionStatus, setCompletionStatus] = useState<CompletionStatus>({
     kickoff: false,
@@ -114,6 +116,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!session?.user) {
         setWorkspace(null);
         setWorkspaceId(null);
+        setUserRole(null);
         setLoading(false);
       }
     });
@@ -124,9 +127,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        // Fetch user's workspace membership
+        // Fetch user's role and workspace membership
         setTimeout(() => {
-          fetchUserWorkspace(session.user.id);
+          fetchUserData(session.user.id);
         }, 0);
       } else {
         setLoading(false);
@@ -136,22 +139,35 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserWorkspace = async (userId: string) => {
-    // Get the user's workspace membership
-    const { data: membershipData, error: membershipError } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
+  const fetchUserData = async (userId: string) => {
+    // Fetch user role and workspace membership in parallel
+    const [roleResult, membershipResult] = await Promise.all([
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-    if (membershipError || !membershipData) {
+    // Set user role
+    if (roleResult.data) {
+      setUserRole(roleResult.data.role as AppRole);
+    }
+
+    // Handle workspace membership
+    if (membershipResult.error || !membershipResult.data) {
       // User has no workspace yet - this is okay for new users
       setLoading(false);
       return;
     }
 
-    const wsId = membershipData.workspace_id;
+    const wsId = membershipResult.data.workspace_id;
     setWorkspaceId(wsId);
 
     // Fetch workspace details
@@ -182,6 +198,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         session,
         workspace,
         workspaceId,
+        userRole,
         loading,
         completionStatus,
         refreshWorkspace,
