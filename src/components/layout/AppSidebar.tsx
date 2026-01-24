@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import unburntLogo from "@/assets/unburnt-clario-logo.png";
 
 interface NavItem {
   title: string;
@@ -83,14 +84,16 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">U</span>
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">Unburnt</span>
-              <span className="text-xs text-muted-foreground">Clario Portal</span>
+          {collapsed ? (
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-sidebar-accent">
+              <span className="text-sm font-bold tracking-wider text-sidebar-primary">U</span>
             </div>
+          ) : (
+            <img 
+              src={unburntLogo} 
+              alt="Unburnt Clario" 
+              className="h-10 w-auto"
+            />
           )}
         </div>
       </SidebarHeader>
