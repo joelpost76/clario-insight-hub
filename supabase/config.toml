@@ -1,1 +1,4 @@
 project_id = "koqckietdzghuxresjsv"
+
+[functions.lookup-user-by-email]
+verify_jwt = false
