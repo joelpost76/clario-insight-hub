@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw } from "lucide-react";
@@ -45,6 +46,11 @@ export default function Admin() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+
+  // Delete confirmation state
+  const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
+  const [deleteWorkspaceId, setDeleteWorkspaceId] = useState<string | null>(null);
+  const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null);
 
   // Fetch accounts
   const fetchAccounts = async () => {
@@ -369,7 +375,7 @@ export default function Admin() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteAccount(account.id)}
+                              onClick={() => setDeleteAccountId(account.id)}
                               className="text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -502,7 +508,7 @@ export default function Admin() {
                               size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteWorkspace(workspace.id);
+                                setDeleteWorkspaceId(workspace.id);
                               }}
                               className="text-destructive hover:text-destructive"
                               title="Delete Workspace"
@@ -611,7 +617,7 @@ export default function Admin() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleRemoveMember(member.id)}
+                                onClick={() => setDeleteMemberId(member.id)}
                                 className="text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -628,6 +634,77 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </div>
+      {/* Delete Account Confirmation */}
+      <AlertDialog open={!!deleteAccountId} onOpenChange={(open) => !open && setDeleteAccountId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this account and all associated workspaces. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteAccountId) handleDeleteAccount(deleteAccountId);
+                setDeleteAccountId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Workspace Confirmation */}
+      <AlertDialog open={!!deleteWorkspaceId} onOpenChange={(open) => !open && setDeleteWorkspaceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Workspace</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this workspace and all its data (interviews, surveys, artifacts, etc.). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteWorkspaceId) handleDeleteWorkspace(deleteWorkspaceId);
+                setDeleteWorkspaceId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove Member Confirmation */}
+      <AlertDialog open={!!deleteMemberId} onOpenChange={(open) => !open && setDeleteMemberId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the user from this workspace. They will lose access to all workspace data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteMemberId) handleRemoveMember(deleteMemberId);
+                setDeleteMemberId(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
