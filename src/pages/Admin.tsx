@@ -24,6 +24,7 @@ interface WorkspaceMemberWithProfile {
     full_name: string | null;
   };
   user_email?: string;
+  roles?: string[];
 }
 
 export default function Admin() {
@@ -68,6 +69,7 @@ export default function Admin() {
   const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null);
   const [cancelInvitationId, setCancelInvitationId] = useState<string | null>(null);
   const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
+  const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
 
   // Fetch accounts
   const fetchAccounts = async () => {
@@ -111,12 +113,27 @@ export default function Admin() {
 
     if (error) {
       toast({ title: "Error fetching members", description: error.message, variant: "destructive" });
-    } else {
-      setMembers(data.map((m: any) => ({
-        ...m,
-        profile: m.profiles,
-      })));
+      return;
     }
+
+    // Fetch roles for all member user_ids
+    const userIds = data.map((m: any) => m.user_id);
+    const { data: rolesData } = await supabase
+      .from("user_roles")
+      .select("user_id, role")
+      .in("user_id", userIds);
+
+    const rolesByUser: Record<string, string[]> = {};
+    rolesData?.forEach((r: any) => {
+      if (!rolesByUser[r.user_id]) rolesByUser[r.user_id] = [];
+      rolesByUser[r.user_id].push(r.role);
+    });
+
+    setMembers(data.map((m: any) => ({
+      ...m,
+      profile: m.profiles,
+      roles: rolesByUser[m.user_id] || [],
+    })));
   };
 
   useEffect(() => {
@@ -399,6 +416,40 @@ export default function Admin() {
     } else {
       toast({ title: "Invitation cancelled" });
       fetchInvitations(selectedWorkspaceId);
+    }
+  };
+
+  // Change user role
+  const handleChangeRole = async (userId: string, newRole: string) => {
+    setChangingRoleUserId(userId);
+    try {
+      // Delete existing roles for this user
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (deleteError) {
+        toast({ title: "Error updating role", description: deleteError.message, variant: "destructive" });
+        return;
+      }
+
+      // Insert the new role
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: newRole as any });
+
+      if (insertError) {
+        toast({ title: "Error assigning role", description: insertError.message, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Role updated", description: `User role changed to ${newRole.replace("_", " ")}.` });
+      if (selectedWorkspaceId) fetchMembers(selectedWorkspaceId);
+    } catch (err) {
+      toast({ title: "Error changing role", variant: "destructive" });
+    } finally {
+      setChangingRoleUserId(null);
     }
   };
 
@@ -820,6 +871,7 @@ export default function Admin() {
                         <TableRow>
                           <TableHead>User ID</TableHead>
                           <TableHead>Name</TableHead>
+                          <TableHead>Role</TableHead>
                           <TableHead>Added</TableHead>
                           <TableHead className="w-[100px]">Actions</TableHead>
                         </TableRow>
@@ -827,7 +879,7 @@ export default function Admin() {
                       <TableBody>
                         {members.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground">
+                            <TableCell colSpan={5} className="text-center text-muted-foreground">
                               No members in this workspace
                             </TableCell>
                           </TableRow>
@@ -836,6 +888,22 @@ export default function Admin() {
                             <TableRow key={member.id}>
                               <TableCell className="font-mono text-xs">{member.user_id}</TableCell>
                               <TableCell>{member.profile?.full_name || "—"}</TableCell>
+                              <TableCell>
+                                <Select
+                                  value={member.roles?.[0] || "client_user"}
+                                  onValueChange={(value) => handleChangeRole(member.user_id, value)}
+                                  disabled={changingRoleUserId === member.user_id}
+                                >
+                                  <SelectTrigger className="w-[160px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="client_user">Client User</SelectItem>
+                                    <SelectItem value="client_admin">Client Admin</SelectItem>
+                                    <SelectItem value="unburnt_admin">Unburnt Admin</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
                               <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                               <TableCell>
                                 <Button
