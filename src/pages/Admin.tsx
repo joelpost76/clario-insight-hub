@@ -70,6 +70,7 @@ export default function Admin() {
   const [cancelInvitationId, setCancelInvitationId] = useState<string | null>(null);
   const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
   const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
+  const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; newRole: string; memberName: string } | null>(null);
 
   // Fetch accounts
   const fetchAccounts = async () => {
@@ -891,7 +892,15 @@ export default function Admin() {
                               <TableCell>
                                 <Select
                                   value={member.roles?.[0] || "client_user"}
-                                  onValueChange={(value) => handleChangeRole(member.user_id, value)}
+                                  onValueChange={(value) => {
+                                    if (value !== (member.roles?.[0] || "client_user")) {
+                                      setPendingRoleChange({
+                                        userId: member.user_id,
+                                        newRole: value,
+                                        memberName: member.profile?.full_name || member.user_id,
+                                      });
+                                    }
+                                  }}
                                   disabled={changingRoleUserId === member.user_id}
                                 >
                                   <SelectTrigger className="w-[160px] h-8 text-xs">
@@ -1090,6 +1099,32 @@ export default function Admin() {
               }}
             >
               Cancel Invitation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Change Role Confirmation */}
+      <AlertDialog open={!!pendingRoleChange} onOpenChange={(open) => !open && setPendingRoleChange(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change User Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to change <span className="font-medium text-foreground">{pendingRoleChange?.memberName}</span>'s role to{" "}
+              <span className="font-medium text-foreground">{pendingRoleChange?.newRole.replace(/_/g, " ")}</span>? This will immediately affect their permissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingRoleChange) {
+                  handleChangeRole(pendingRoleChange.userId, pendingRoleChange.newRole);
+                }
+                setPendingRoleChange(null);
+              }}
+            >
+              Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
