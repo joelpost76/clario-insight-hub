@@ -124,13 +124,19 @@ export default function Auth() {
               "The system exists to protect the people — not the other way around."
             </p>
           </blockquote>
-          <div className="space-y-1">
-            <p className="text-sm font-medium uppercase tracking-widest text-primary">
-              Core Belief
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Rooted · Clear · Unshakeable · Sharp · Humane
-            </p>
+          <div className="space-y-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium uppercase tracking-widest text-primary">Signal to source</p>
+              <p className="text-sm text-muted-foreground">We isolate the constraints that create repeat problems.</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium uppercase tracking-widest text-primary">Systems that stick</p>
+              <p className="text-sm text-muted-foreground">Workflows, roles, scorecards, and cadence your team can run.</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium uppercase tracking-widest text-primary">Humane performance</p>
+              <p className="text-sm text-muted-foreground">Clarity and ownership without grinding people down.</p>
+            </div>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
