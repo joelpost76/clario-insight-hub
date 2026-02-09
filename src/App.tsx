@@ -17,6 +17,7 @@ import SIPOC from "./pages/SIPOC";
 import Workflow from "./pages/Workflow";
 import Baseline from "./pages/Baseline";
 import Admin from "./pages/Admin";
+import Welcome from "./pages/Welcome";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
 
@@ -110,6 +111,14 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <Baseline />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/welcome"
+              element={
+                <RequireWorkspace>
+                  <Welcome />
                 </RequireWorkspace>
               }
             />

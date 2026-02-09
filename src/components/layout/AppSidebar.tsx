@@ -12,7 +12,8 @@ import {
   LogOut,
   Check,
   Circle,
-  Settings
+  Settings,
+  BookOpen
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -44,6 +45,7 @@ interface NavItem {
 }
 
 const diagnosticSteps: NavItem[] = [
+  { title: "Welcome", url: "/welcome", icon: BookOpen },
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Kickoff", url: "/kickoff", icon: Rocket },
   { title: "Intake", url: "/intake", icon: ClipboardList },

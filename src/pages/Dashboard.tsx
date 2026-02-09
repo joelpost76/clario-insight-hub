@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+const WELCOME_SEEN_PREFIX = "welcome_seen_";
 
 interface GateItem {
   id: string;
@@ -31,6 +33,15 @@ interface NextAction {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { workspace, workspaceId, completionStatus } = useWorkspace();
+
+  // Redirect to welcome page on first visit per workspace
+  const welcomeSeen = workspaceId
+    ? localStorage.getItem(`${WELCOME_SEEN_PREFIX}${workspaceId}`) === "true"
+    : true;
+
+  if (!welcomeSeen) {
+    return <Navigate to="/welcome" replace />;
+  }
 
   // Fetch counts for stats
   const { data: stats } = useQuery({
