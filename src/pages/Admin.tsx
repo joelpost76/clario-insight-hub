@@ -108,7 +108,7 @@ export default function Admin() {
   const fetchMembers = async (workspaceId: string) => {
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("*, profiles(full_name)")
+      .select("*")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false });
 
@@ -117,22 +117,28 @@ export default function Admin() {
       return;
     }
 
-    // Fetch roles for all member user_ids
     const userIds = data.map((m: any) => m.user_id);
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("user_id, role")
-      .in("user_id", userIds);
+
+    // Fetch profiles and roles in parallel
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase.from("profiles").select("user_id, full_name").in("user_id", userIds),
+      supabase.from("user_roles").select("user_id, role").in("user_id", userIds),
+    ]);
+
+    const profilesByUser: Record<string, { full_name: string | null }> = {};
+    profilesRes.data?.forEach((p: any) => {
+      profilesByUser[p.user_id] = { full_name: p.full_name };
+    });
 
     const rolesByUser: Record<string, string[]> = {};
-    rolesData?.forEach((r: any) => {
+    rolesRes.data?.forEach((r: any) => {
       if (!rolesByUser[r.user_id]) rolesByUser[r.user_id] = [];
       rolesByUser[r.user_id].push(r.role);
     });
 
     setMembers(data.map((m: any) => ({
       ...m,
-      profile: m.profiles,
+      profile: profilesByUser[m.user_id] || null,
       roles: rolesByUser[m.user_id] || [],
     })));
   };
