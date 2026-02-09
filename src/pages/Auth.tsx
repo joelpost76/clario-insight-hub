@@ -111,13 +111,7 @@ export default function Auth() {
     <div className="flex min-h-screen">
       {/* Left panel - Branding */}
       <div className="hidden w-1/2 flex-col justify-between bg-muted p-12 lg:flex">
-        <div>
-          <img 
-            src={unburntLogo} 
-            alt="Unburnt Clario" 
-            className="h-24 w-auto"
-          />
-        </div>
+        <div />
         <div className="space-y-6">
           <blockquote className="space-y-2">
             <p className="text-lg font-light leading-relaxed text-foreground/80">
@@ -148,13 +142,7 @@ export default function Auth() {
       <div className="flex w-full flex-col justify-center bg-background p-8 lg:w-1/2">
         <div className="mx-auto w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="mb-8 lg:hidden">
-            <img 
-              src={unburntLogo} 
-              alt="Unburnt Clario" 
-              className="h-14 w-auto"
-            />
-          </div>
+          <div className="mb-8 lg:hidden" />
 
           <div className="mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
