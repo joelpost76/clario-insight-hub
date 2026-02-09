@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw, Mail, Send, Check, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Account, Workspace } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
@@ -46,6 +47,20 @@ export default function Admin() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+
+  // Invite state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<string>("client_user");
+  const [inviting, setInviting] = useState(false);
+  const [invitations, setInvitations] = useState<Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    created_at: string;
+    accepted_at: string | null;
+  }>>([]);
 
   // Delete confirmation state
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
@@ -110,8 +125,10 @@ export default function Admin() {
   useEffect(() => {
     if (selectedWorkspaceId) {
       fetchMembers(selectedWorkspaceId);
+      fetchInvitations(selectedWorkspaceId);
     } else {
       setMembers([]);
+      setInvitations([]);
     }
   }, [selectedWorkspaceId]);
 
@@ -278,6 +295,62 @@ export default function Admin() {
       if (selectedWorkspaceId) {
         fetchMembers(selectedWorkspaceId);
       }
+    }
+  };
+
+  // Fetch invitations for a workspace
+  const fetchInvitations = async (workspaceId: string) => {
+    const { data, error } = await supabase
+      .from("invitations")
+      .select("id, email, role, status, created_at, accepted_at")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching invitations:", error.message);
+    } else {
+      setInvitations(data || []);
+    }
+  };
+
+  // Invite user by email
+  const handleInviteUser = async () => {
+    if (!inviteEmail.trim() || !selectedWorkspaceId) {
+      toast({ title: "Email and workspace are required", variant: "destructive" });
+      return;
+    }
+
+    setInviting(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: inviteEmail.trim(),
+          workspace_id: selectedWorkspaceId,
+          role: inviteRole,
+        },
+      });
+
+      if (error) {
+        toast({ title: "Error sending invitation", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: "Invitation failed", description: data.error, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: data.status === "added" ? "Member added" : "Invitation sent", description: data.message });
+      setInviteEmail("");
+      setInviteRole("client_user");
+      setInviteDialogOpen(false);
+      fetchMembers(selectedWorkspaceId);
+      fetchInvitations(selectedWorkspaceId);
+    } catch (err) {
+      toast({ title: "Error sending invitation", variant: "destructive" });
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -562,15 +635,15 @@ export default function Admin() {
                     </Select>
                     <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button className="gap-2" disabled={!selectedWorkspaceId}>
+                        <Button variant="outline" className="gap-2" disabled={!selectedWorkspaceId}>
                           <UserPlus className="h-4 w-4" />
-                          Add Member
+                          Add Existing
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Add Member</DialogTitle>
-                          <DialogDescription>Add a user to the selected workspace by email</DialogDescription>
+                          <DialogTitle>Add Existing User</DialogTitle>
+                          <DialogDescription>Add a user who already has an account to this workspace</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           <div className="space-y-2">
@@ -624,6 +697,64 @@ export default function Admin() {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+                    <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="gap-2" disabled={!selectedWorkspaceId}>
+                          <Send className="h-4 w-4" />
+                          Invite by Email
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Invite User</DialogTitle>
+                          <DialogDescription>
+                            Send an invitation email. If the user already has an account, they'll be added immediately. Otherwise, they'll receive a signup invitation and be auto-assigned when they join.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="inviteEmail">Email Address *</Label>
+                            <Input
+                              id="inviteEmail"
+                              type="email"
+                              value={inviteEmail}
+                              onChange={(e) => setInviteEmail(e.target.value)}
+                              placeholder="newuser@company.com"
+                              onKeyDown={(e) => e.key === "Enter" && handleInviteUser()}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Role</Label>
+                            <Select value={inviteRole} onValueChange={setInviteRole}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="client_user">Client User</SelectItem>
+                                <SelectItem value="client_admin">Client Admin</SelectItem>
+                                <SelectItem value="unburnt_admin">Unburnt Admin</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              The role assigned when the user signs up.
+                            </p>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => {
+                            setInviteDialogOpen(false);
+                            setInviteEmail("");
+                            setInviteRole("client_user");
+                          }}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleInviteUser} disabled={inviting || !inviteEmail.trim()} className="gap-2">
+                            <Mail className="h-4 w-4" />
+                            {inviting ? "Sending..." : "Send Invitation"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </CardHeader>
@@ -634,43 +765,92 @@ export default function Admin() {
                     <p className="mt-4 text-muted-foreground">Select a workspace to view members</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Added</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {members.length === 0 ? (
+                  <div className="space-y-8">
+                    {/* Active Members */}
+                    <Table>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">
-                            No members in this workspace
-                          </TableCell>
+                          <TableHead>User ID</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Added</TableHead>
+                          <TableHead className="w-[100px]">Actions</TableHead>
                         </TableRow>
-                      ) : (
-                        members.map((member) => (
-                          <TableRow key={member.id}>
-                            <TableCell className="font-mono text-xs">{member.user_id}</TableCell>
-                            <TableCell>{member.profile?.full_name || "—"}</TableCell>
-                            <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteMemberId(member.id)}
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                      </TableHeader>
+                      <TableBody>
+                        {members.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center text-muted-foreground">
+                              No members in this workspace
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          members.map((member) => (
+                            <TableRow key={member.id}>
+                              <TableCell className="font-mono text-xs">{member.user_id}</TableCell>
+                              <TableCell>{member.profile?.full_name || "—"}</TableCell>
+                              <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteMemberId(member.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+
+                    {/* Pending Invitations */}
+                    {invitations.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          Pending Invitations
+                        </h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Invited</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {invitations.map((inv) => (
+                              <TableRow key={inv.id}>
+                                <TableCell>{inv.email}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">
+                                    {inv.role.replace("_", " ")}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {inv.status === "pending" ? (
+                                    <Badge variant="secondary" className="gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      Pending
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="gap-1 bg-primary/10 text-primary border-primary/20">
+                                      <Check className="h-3 w-3" />
+                                      Accepted
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>{new Date(inv.created_at).toLocaleDateString()}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
