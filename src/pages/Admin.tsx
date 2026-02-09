@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw, Mail, Send, Check, Clock } from "lucide-react";
+import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw, Mail, Send, Check, Clock, RefreshCw, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Account, Workspace } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -66,6 +66,8 @@ export default function Admin() {
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [deleteWorkspaceId, setDeleteWorkspaceId] = useState<string | null>(null);
   const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null);
+  const [cancelInvitationId, setCancelInvitationId] = useState<string | null>(null);
+  const [resendingInvitationId, setResendingInvitationId] = useState<string | null>(null);
 
   // Fetch accounts
   const fetchAccounts = async () => {
@@ -351,6 +353,52 @@ export default function Admin() {
       toast({ title: "Error sending invitation", variant: "destructive" });
     } finally {
       setInviting(false);
+    }
+  };
+
+  // Resend invitation
+  const handleResendInvitation = async (invitation: typeof invitations[0]) => {
+    setResendingInvitationId(invitation.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: invitation.email,
+          workspace_id: selectedWorkspaceId,
+          role: invitation.role,
+        },
+      });
+
+      if (error) {
+        toast({ title: "Error resending invitation", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: "Resend failed", description: data.error, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Invitation resent", description: `A new invitation email has been sent to ${invitation.email}.` });
+      fetchInvitations(selectedWorkspaceId);
+    } catch (err) {
+      toast({ title: "Error resending invitation", variant: "destructive" });
+    } finally {
+      setResendingInvitationId(null);
+    }
+  };
+
+  // Cancel invitation
+  const handleCancelInvitation = async (invitationId: string) => {
+    const { error } = await supabase
+      .from("invitations")
+      .delete()
+      .eq("id", invitationId);
+
+    if (error) {
+      toast({ title: "Error cancelling invitation", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Invitation cancelled" });
+      fetchInvitations(selectedWorkspaceId);
     }
   };
 
@@ -819,6 +867,7 @@ export default function Admin() {
                               <TableHead>Role</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Invited</TableHead>
+                              <TableHead className="w-[100px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -844,6 +893,31 @@ export default function Admin() {
                                   )}
                                 </TableCell>
                                 <TableCell>{new Date(inv.created_at).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                  {inv.status === "pending" && (
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleResendInvitation(inv)}
+                                        disabled={resendingInvitationId === inv.id}
+                                        className="text-muted-foreground hover:text-foreground"
+                                        title="Resend Invitation"
+                                      >
+                                        <RefreshCw className={`h-4 w-4 ${resendingInvitationId === inv.id ? "animate-spin" : ""}`} />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setCancelInvitationId(inv.id)}
+                                        className="text-destructive hover:text-destructive"
+                                        title="Cancel Invitation"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -924,6 +998,30 @@ export default function Admin() {
               }}
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Invitation Confirmation */}
+      <AlertDialog open={!!cancelInvitationId} onOpenChange={(open) => !open && setCancelInvitationId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel the pending invitation. The user will no longer be able to join this workspace via this invite.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (cancelInvitationId) handleCancelInvitation(cancelInvitationId);
+                setCancelInvitationId(null);
+              }}
+            >
+              Cancel Invitation
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
