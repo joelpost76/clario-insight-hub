@@ -198,46 +198,56 @@ export default function Admin() {
     toast({ title: "Welcome page reset", description: "The welcome page will show again on next visit to this workspace." });
   };
 
-  // Add member to workspace
-  const handleAddMember = async () => {
-    if (!selectedWorkspaceId || !newMemberEmail.trim()) {
-      toast({ title: "Workspace and email are required", variant: "destructive" });
+  const [addingMember, setAddingMember] = useState(false);
+  const [lookupResult, setLookupResult] = useState<{ user_id: string; email: string; full_name: string | null } | null>(null);
+
+  // Look up user by email via edge function
+  const handleLookupUser = async () => {
+    if (!newMemberEmail.trim()) {
+      toast({ title: "Email is required", variant: "destructive" });
       return;
     }
 
-    // First find the user by email using profiles or auth
-    // Since we can't query auth.users directly, we'll use the user_id directly
-    // For now, the admin needs to provide the user_id (we'll improve this with a user lookup)
-    
-    // Look up user in profiles by checking if they exist
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .limit(100);
+    setAddingMember(true);
+    setLookupResult(null);
 
-    if (profileError) {
-      toast({ title: "Error looking up users", description: profileError.message, variant: "destructive" });
-      return;
-    }
-
-    // For demo purposes, we'll add by user_id directly
-    // In production, you'd use an edge function to look up by email
-    const userId = newMemberEmail.trim();
-
-    // Check if it looks like a UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId)) {
-      toast({ 
-        title: "Invalid user ID", 
-        description: "Please enter a valid user UUID. (Note: Email lookup requires an edge function)",
-        variant: "destructive" 
+    try {
+      const { data, error } = await supabase.functions.invoke("lookup-user-by-email", {
+        body: { email: newMemberEmail.trim() },
       });
+
+      if (error) {
+        toast({ title: "User not found", description: "No account exists with that email address.", variant: "destructive" });
+        setAddingMember(false);
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: "Lookup failed", description: data.error, variant: "destructive" });
+        setAddingMember(false);
+        return;
+      }
+
+      setLookupResult(data);
+    } catch (err) {
+      toast({ title: "Error looking up user", variant: "destructive" });
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  // Add confirmed user to workspace
+  const handleAddMember = async () => {
+    if (!selectedWorkspaceId || !lookupResult) {
+      toast({ title: "Please look up a user first", variant: "destructive" });
       return;
     }
+
+    setAddingMember(true);
 
     const { error } = await supabase.from("workspace_members").insert({
       workspace_id: selectedWorkspaceId,
-      user_id: userId,
+      user_id: lookupResult.user_id,
     });
 
     if (error) {
@@ -247,11 +257,14 @@ export default function Admin() {
         toast({ title: "Error adding member", description: error.message, variant: "destructive" });
       }
     } else {
-      toast({ title: "Member added successfully" });
+      toast({ title: "Member added successfully", description: `${lookupResult.email} has been added to the workspace.` });
       setNewMemberEmail("");
+      setLookupResult(null);
       setMemberDialogOpen(false);
       fetchMembers(selectedWorkspaceId);
     }
+
+    setAddingMember(false);
   };
 
   // Remove member from workspace
@@ -557,27 +570,57 @@ export default function Admin() {
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Add Member</DialogTitle>
-                          <DialogDescription>Add a user to the selected workspace</DialogDescription>
+                          <DialogDescription>Add a user to the selected workspace by email</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           <div className="space-y-2">
-                            <Label htmlFor="userId">User ID (UUID) *</Label>
-                            <Input
-                              id="userId"
-                              value={newMemberEmail}
-                              onChange={(e) => setNewMemberEmail(e.target.value)}
-                              placeholder="Enter user UUID"
-                            />
+                            <Label htmlFor="memberEmail">Email Address *</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                id="memberEmail"
+                                type="email"
+                                value={newMemberEmail}
+                                onChange={(e) => {
+                                  setNewMemberEmail(e.target.value);
+                                  setLookupResult(null);
+                                }}
+                                placeholder="consultant@example.com"
+                                onKeyDown={(e) => e.key === "Enter" && handleLookupUser()}
+                              />
+                              <Button
+                                variant="secondary"
+                                onClick={handleLookupUser}
+                                disabled={addingMember || !newMemberEmail.trim()}
+                              >
+                                Look up
+                              </Button>
+                            </div>
                             <p className="text-xs text-muted-foreground">
-                              Enter the user's UUID from the authentication system.
+                              Enter the user's email address. They must have an existing account.
                             </p>
                           </div>
+
+                          {lookupResult && (
+                            <div className="rounded-md border border-border bg-muted/50 p-3 space-y-1">
+                              <p className="text-sm font-medium text-foreground">
+                                {lookupResult.full_name || "No name set"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{lookupResult.email}</p>
+                              <p className="text-xs font-mono text-muted-foreground">{lookupResult.user_id}</p>
+                            </div>
+                          )}
                         </div>
                         <DialogFooter>
-                          <Button variant="outline" onClick={() => setMemberDialogOpen(false)}>
+                          <Button variant="outline" onClick={() => {
+                            setMemberDialogOpen(false);
+                            setLookupResult(null);
+                            setNewMemberEmail("");
+                          }}>
                             Cancel
                           </Button>
-                          <Button onClick={handleAddMember}>Add Member</Button>
+                          <Button onClick={handleAddMember} disabled={!lookupResult || addingMember}>
+                            Add Member
+                          </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
