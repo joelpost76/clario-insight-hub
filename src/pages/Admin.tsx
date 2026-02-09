@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw } from "lucide-react";
 import { Account, Workspace } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
@@ -184,6 +184,12 @@ export default function Admin() {
   // Enter workspace and navigate to dashboard
   const handleEnterWorkspace = async (workspaceId: string) => {
     await switchWorkspace(workspaceId);
+  };
+
+  // Reset welcome page for a workspace (clears localStorage flag for all users on this browser)
+  const handleResetWelcome = (workspaceId: string) => {
+    localStorage.removeItem(`welcome_seen_${workspaceId}`);
+    toast({ title: "Welcome page reset", description: "The welcome page will show again on next visit to this workspace." });
   };
 
   // Add member to workspace
@@ -478,6 +484,18 @@ export default function Admin() {
                               title="Enter Workspace"
                             >
                               <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleResetWelcome(workspace.id);
+                              }}
+                              className="text-muted-foreground hover:text-foreground"
+                              title="Reset Welcome Page"
+                            >
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
