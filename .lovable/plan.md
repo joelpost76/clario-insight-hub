@@ -1,26 +1,23 @@
 
 
-## Fix: "Could not find a relationship between workspace_members and profiles"
+## Replace Core Belief Section on Auth Page
 
-### Problem
-The `fetchMembers` function uses a Supabase embedded select (`.select("*, profiles(full_name)")`) which requires a foreign key relationship between `workspace_members` and `profiles`. No such foreign key exists in the database schema.
+### What Changes
 
-### Solution
-Replace the embedded/joined query with two separate queries:
+**File: `src/pages/Auth.tsx`** (lines ~127-134)
 
-1. Fetch workspace members normally (without the `profiles` join)
-2. Fetch profiles separately for the member user IDs
-3. Map profiles onto members in JavaScript
+Replace the current "Core Belief" block with three labeled pillars:
+
+| Label | Description |
+|---|---|
+| **Signal to source** | We isolate the constraints that create repeat problems. |
+| **Systems that stick** | Workflows, roles, scorecards, and cadence your team can run. |
+| **Humane performance** | Clarity and ownership without grinding people down. |
 
 ### Technical Details
 
-**File: `src/pages/Admin.tsx`** (lines ~108-137)
-
-Change the `fetchMembers` function:
-- Remove `profiles(full_name)` from the `.select()` call — use just `"*"`
-- After fetching members, collect all `user_id` values
-- Query `profiles` table filtered by those user IDs (already done similarly for roles)
-- Map profile data onto each member object
-
-This avoids needing a database migration to add a foreign key, and keeps the fix minimal.
+- Remove the single "Core Belief" heading and its subtitle ("Rooted . Clear . Unshakeable . Sharp . Humane")
+- Replace with three small stacked items, each with a bold label and description, using the same styling conventions (uppercase tracking-widest for labels, muted-foreground for descriptions)
+- The tagline below ("From smoke to source. Then we build the fix.") remains unchanged
+- No changes to Dashboard, NoWorkspace, or other pages unless requested
 
