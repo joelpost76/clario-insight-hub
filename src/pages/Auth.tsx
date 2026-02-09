@@ -121,7 +121,7 @@ export default function Auth() {
         <div className="space-y-6">
           <blockquote className="space-y-2">
             <p className="text-lg font-light leading-relaxed text-foreground/80">
-              "The system exists to protect the people — not the other way around."
+              "Fix the work before it burns out the people."
             </p>
           </blockquote>
           <div className="space-y-4">
