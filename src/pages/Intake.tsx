@@ -1,74 +1,106 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { IntakeProgressBar } from "@/components/intake/IntakeProgressBar";
+import { IntakeStepOne } from "@/components/intake/IntakeStepOne";
+import { IntakeStepTwo } from "@/components/intake/IntakeStepTwo";
+import { IntakeStepThree } from "@/components/intake/IntakeStepThree";
+import { IntakeStepFour } from "@/components/intake/IntakeStepFour";
+import {
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
-const SYMPTOM_OPTIONS = [
-  "Work constantly feels urgent / reactive",
-  "Deadlines slip / schedule unpredictability",
-  "Margin leakage / estimate-to-actual variance",
-  "Rework / mistakes / repeated effort",
-  "Too many meetings, not enough clarity",
-  "Decisions bottleneck with one person",
-  "PMs/coordinators overwhelmed",
-  "Billing late / change orders messy / cashflow swings",
-  "Tool sprawl / duplicated entry / mismatched systems",
-  "Team burnout / turnover risk",
-  "Client/customer complaints rising",
-  "Onboarding takes too long (people or customers)",
-];
+export interface ToolEntry {
+  name: string;
+  purpose?: string;
+}
 
-const PAIN_AREAS = [
-  { key: "sales_to_ops_handoff", label: "Sales → Handoff to Ops" },
-  { key: "estimating_scope_quality", label: "Estimating / Scope quality" },
-  { key: "scheduling_capacity", label: "Scheduling / Capacity planning" },
-  { key: "delivery_execution", label: "Delivery execution" },
-  { key: "change_orders", label: "Change orders / Variations" },
-  { key: "job_costing_visibility", label: "Job costing / Visibility" },
-  { key: "billing_collections", label: "Billing / Collections" },
-  { key: "role_clarity_accountability", label: "Role clarity / Accountability" },
-  { key: "cadence_meetings", label: "Meetings / Cadence" },
-  { key: "customer_comms", label: "Customer communication" },
-];
+export interface IntakeFormData {
+  symptom_clusters: string[];
+  recurring_fire_sentence: string;
+  pain_ratings: Record<string, number>;
+  toc_wait_points: string;
+  toc_replanning_points: string;
+  toc_one_fix_effect: string;
+  decisions_bottleneck: string;
+  metrics_tracked_today: string;
+  tools_list: ToolEntry[];
+}
+
+const defaultValues: IntakeFormData = {
+  symptom_clusters: [],
+  recurring_fire_sentence: "",
+  pain_ratings: {},
+  toc_wait_points: "",
+  toc_replanning_points: "",
+  toc_one_fix_effect: "",
+  decisions_bottleneck: "",
+  metrics_tracked_today: "",
+  tools_list: [],
+};
+
+function calculateCompletion(data: IntakeFormData): { percentage: number; missing: string[] } {
+  const missing: string[] = [];
+  let filled = 0;
+  const total = 8;
+
+  if (data.symptom_clusters.length >= 1) filled++;
+  else missing.push("At least 1 symptom cluster");
+
+  if (data.recurring_fire_sentence.trim().length >= 20) filled++;
+  else missing.push("Recurring fire sentence (20+ chars)");
+
+  const ratedCount = Object.values(data.pain_ratings).filter((v) => v > 0).length;
+  if (ratedCount >= 3) filled++;
+  else missing.push("At least 3 pain ratings");
+
+  if (data.toc_wait_points.trim().length >= 20) filled++;
+  else missing.push("Wait points (20+ chars)");
+
+  if (data.toc_replanning_points.trim().length >= 20) filled++;
+  else missing.push("Re-planning points (20+ chars)");
+
+  if (data.toc_one_fix_effect.trim().length >= 20) filled++;
+  else missing.push("One-fix effect (20+ chars)");
+
+  if (data.decisions_bottleneck.trim().length >= 20) filled++;
+  else missing.push("Decision bottlenecks (20+ chars)");
+
+  if (data.metrics_tracked_today.trim().length >= 20) filled++;
+  else missing.push("Metrics tracked today (20+ chars)");
+
+  return { percentage: Math.round((filled / total) * 100), missing };
+}
 
 export default function Intake() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { workspaceId, refreshCompletionStatus } = useWorkspace();
-  
+
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [intakeId, setIntakeId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    symptom_clusters: [] as string[],
-    recurring_fire_sentence: "",
-    pain_ratings: {} as Record<string, number>,
-    toc_wait_points: "",
-    toc_replanning_points: "",
-    toc_one_fix_effect: "",
-    decisions_bottleneck: "",
-    metrics_tracked_today: "",
-  });
+
+  const form = useForm<IntakeFormData>({ defaultValues });
 
   useEffect(() => {
-    if (workspaceId) {
-      loadIntake();
-    }
+    if (workspaceId) loadIntake();
   }, [workspaceId]);
 
   const loadIntake = async () => {
     if (!workspaceId) return;
-    
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("intake_responses")
       .select("*")
       .eq("workspace_id", workspaceId)
@@ -76,7 +108,7 @@ export default function Intake() {
 
     if (data) {
       setIntakeId(data.id);
-      setFormData({
+      form.reset({
         symptom_clusters: (data.symptom_clusters as string[]) ?? [],
         recurring_fire_sentence: data.recurring_fire_sentence ?? "",
         pain_ratings: (data.pain_ratings as Record<string, number>) ?? {},
@@ -85,78 +117,92 @@ export default function Intake() {
         toc_one_fix_effect: data.toc_one_fix_effect ?? "",
         decisions_bottleneck: data.decisions_bottleneck ?? "",
         metrics_tracked_today: data.metrics_tracked_today ?? "",
+        tools_list: (data.tools_list as unknown as ToolEntry[]) ?? [],
       });
     }
     setLoading(false);
   };
 
-  const handleSymptomToggle = (symptom: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      symptom_clusters: prev.symptom_clusters.includes(symptom)
-        ? prev.symptom_clusters.filter((s) => s !== symptom)
-        : [...prev.symptom_clusters, symptom],
-    }));
-  };
+  const saveData = useCallback(
+    async (isFinal: boolean = false) => {
+      if (!workspaceId) return false;
 
-  const handlePainRating = (key: string, value: number[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      pain_ratings: { ...prev.pain_ratings, [key]: value[0] },
-    }));
-  };
+      const values = form.getValues();
 
-  const handleSave = async () => {
-    if (!workspaceId) return;
-
-    setSaving(true);
-
-    const intakeData = {
-      workspace_id: workspaceId,
-      symptom_clusters: formData.symptom_clusters,
-      recurring_fire_sentence: formData.recurring_fire_sentence || null,
-      pain_ratings: formData.pain_ratings,
-      toc_wait_points: formData.toc_wait_points || null,
-      toc_replanning_points: formData.toc_replanning_points || null,
-      toc_one_fix_effect: formData.toc_one_fix_effect || null,
-      decisions_bottleneck: formData.decisions_bottleneck || null,
-      metrics_tracked_today: formData.metrics_tracked_today || null,
-    };
-
-    let error;
-    if (intakeId) {
-      const result = await supabase
-        .from("intake_responses")
-        .update(intakeData)
-        .eq("id", intakeId);
-      error = result.error;
-    } else {
-      const result = await supabase
-        .from("intake_responses")
-        .insert(intakeData)
-        .select()
-        .single();
-      error = result.error;
-      if (result.data) {
-        setIntakeId(result.data.id);
+      if (isFinal) {
+        const { percentage, missing } = calculateCompletion(values);
+        if (percentage < 75) {
+          toast({
+            title: "Intake incomplete",
+            description: `${percentage}% complete — need 75%. Missing: ${missing.join(", ")}`,
+            variant: "destructive",
+          });
+          return false;
+        }
       }
-    }
 
-    if (error) {
+      setSaving(true);
+
+      const payload = {
+        workspace_id: workspaceId,
+        symptom_clusters: values.symptom_clusters,
+        recurring_fire_sentence: values.recurring_fire_sentence || null,
+        pain_ratings: values.pain_ratings as unknown as Record<string, unknown>,
+        toc_wait_points: values.toc_wait_points || null,
+        toc_replanning_points: values.toc_replanning_points || null,
+        toc_one_fix_effect: values.toc_one_fix_effect || null,
+        decisions_bottleneck: values.decisions_bottleneck || null,
+        metrics_tracked_today: values.metrics_tracked_today || null,
+        tools_list: values.tools_list as unknown as null,
+      } as any;
+
+      let error;
+      if (intakeId) {
+        const result = await supabase
+          .from("intake_responses")
+          .update(payload)
+          .eq("id", intakeId);
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from("intake_responses")
+          .insert(payload)
+          .select()
+          .single();
+        error = result.error;
+        if (result.data) setIntakeId(result.data.id);
+      }
+
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+        setSaving(false);
+        return false;
+      }
+
       toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+        title: isFinal ? "Intake saved" : "Draft saved",
+        description: isFinal
+          ? "Your intake responses have been saved."
+          : "Progress saved. You can come back anytime.",
       });
-    } else {
-      toast({
-        title: "Intake saved",
-        description: "Your intake responses have been saved.",
-      });
+
       await refreshCompletionStatus();
-    }
+      setSaving(false);
+      return true;
+    },
+    [workspaceId, intakeId, form, toast, refreshCompletionStatus]
+  );
 
-    setSaving(false);
+  const handleNext = async () => {
+    await saveData(false);
+    setStep((s) => Math.min(s + 1, 4));
+  };
+
+  const handlePrevious = () => setStep((s) => Math.max(s - 1, 1));
+
+  const handleFinalSave = async () => {
+    const success = await saveData(true);
+    if (success) navigate("/dashboard");
   };
 
   if (loading) {
@@ -171,170 +217,65 @@ export default function Intake() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-3xl space-y-8">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Intake</h1>
-          <p className="mt-1 text-muted-foreground">
-            Capture the signal. Start where it hurts. Stay precise.
-          </p>
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Intake</h1>
+            <p className="mt-1 text-muted-foreground">
+              Capture the signal. Start where it hurts. Stay precise.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Dashboard
+          </Button>
         </div>
 
-        {/* Recurring Fires */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recurring Fires (Smoke)</CardTitle>
-            <CardDescription>What symptoms are you experiencing?</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              {SYMPTOM_OPTIONS.map((symptom) => (
-                <div key={symptom} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={symptom}
-                    checked={formData.symptom_clusters.includes(symptom)}
-                    onCheckedChange={() => handleSymptomToggle(symptom)}
-                  />
-                  <Label htmlFor={symptom} className="font-normal">
-                    {symptom}
-                  </Label>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-2 pt-4">
-              <Label htmlFor="recurring_fire_sentence">
-                In one sentence: what problem keeps coming back?
-              </Label>
-              <Textarea
-                id="recurring_fire_sentence"
-                placeholder="Example: Jobs start without complete scope, then we scramble, rework, and bill late."
-                value={formData.recurring_fire_sentence}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, recurring_fire_sentence: e.target.value }))
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Progress */}
+        <IntakeProgressBar currentStep={step} totalSteps={4} />
 
-        {/* Pain Ratings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Pain Ratings (0–10)</CardTitle>
-            <CardDescription>Rate severity by area.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {PAIN_AREAS.map((area) => (
-              <div key={area.key} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="font-normal">{area.label}</Label>
-                  <span className="text-sm font-medium">
-                    {formData.pain_ratings[area.key] ?? 0}
-                  </span>
-                </div>
-                <Slider
-                  value={[formData.pain_ratings[area.key] ?? 0]}
-                  onValueChange={(value) => handlePainRating(area.key, value)}
-                  max={10}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {/* Step content */}
+        {step === 1 && <IntakeStepOne form={form} />}
+        {step === 2 && <IntakeStepTwo form={form} />}
+        {step === 3 && <IntakeStepThree form={form} />}
+        {step === 4 && <IntakeStepFour form={form} />}
 
-        {/* TOC Prompts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Constraint Thinking (TOC)</CardTitle>
-            <CardDescription>Help us find the bottleneck.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="toc_wait_points">Where does work wait the longest?</Label>
-              <Textarea
-                id="toc_wait_points"
-                placeholder="Queues, approvals, missing inputs, scheduling gaps, billing triggers."
-                value={formData.toc_wait_points}
-                onChange={(e) => setFormData((prev) => ({ ...prev, toc_wait_points: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="toc_replanning_points">
-                What step forces the most re-planning or escalation?
-              </Label>
-              <Textarea
-                id="toc_replanning_points"
-                placeholder="Where priorities flip, schedules get rewritten, or leadership gets pulled in."
-                value={formData.toc_replanning_points}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, toc_replanning_points: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="toc_one_fix_effect">
-                If we fixed one bottleneck, what other fires would shrink?
-              </Label>
-              <Textarea
-                id="toc_one_fix_effect"
-                placeholder="List downstream symptoms that would reduce."
-                value={formData.toc_one_fix_effect}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, toc_one_fix_effect: e.target.value }))
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Decision Bottlenecks */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Decision Bottlenecks + Metrics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="decisions_bottleneck">
-                What decisions route through one person (or get stuck)?
-              </Label>
-              <Textarea
-                id="decisions_bottleneck"
-                placeholder="Example: pricing exceptions, schedule changes, change order approval, job closeout."
-                value={formData.decisions_bottleneck}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, decisions_bottleneck: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="metrics_tracked_today">
-                What do you track today (even if inconsistent)?
-              </Label>
-              <Textarea
-                id="metrics_tracked_today"
-                placeholder="Weekly KPIs, reports, dashboards, spreadsheets."
-                value={formData.metrics_tracked_today}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, metrics_tracked_today: e.target.value }))
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate("/dashboard")}>
-            Cancel
+        {/* Navigation */}
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <Button variant="outline" onClick={handlePrevious} disabled={step === 1}>
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Previous
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save intake
+
+          <Button
+            variant="secondary"
+            onClick={() => saveData(false)}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-1 h-4 w-4" />
+            )}
+            Save draft
           </Button>
-          <Button variant="secondary" onClick={() => navigate("/artifacts")}>
-            Next: Artifacts
-          </Button>
+
+          {step < 4 ? (
+            <Button onClick={handleNext} disabled={saving}>
+              Next
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={handleFinalSave} disabled={saving}>
+              {saving ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1 h-4 w-4" />
+              )}
+              Save intake
+            </Button>
+          )}
         </div>
       </div>
     </AppLayout>
