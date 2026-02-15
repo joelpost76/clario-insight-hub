@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.invite-user]
 verify_jwt = false
+
+[functions.create-workspace-from-lead]
+verify_jwt = false
