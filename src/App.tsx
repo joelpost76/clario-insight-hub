@@ -7,6 +7,9 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { RequireWorkspace } from "@/components/RequireWorkspace";
 import { RequireAdmin } from "@/components/RequireAdmin";
 import Auth from "./pages/Auth";
+import GetStarted from "./pages/GetStarted";
+import ServiceConfiguration from "./pages/ServiceConfiguration";
+import ThankYou from "./pages/ThankYou";
 import Dashboard from "./pages/Dashboard";
 import Kickoff from "./pages/Kickoff";
 import Intake from "./pages/Intake";
@@ -31,6 +34,9 @@ const App = () => (
       <BrowserRouter>
         <WorkspaceProvider>
           <Routes>
+            <Route path="/get-started" element={<GetStarted />} />
+            <Route path="/get-started/configure" element={<ServiceConfiguration />} />
+            <Route path="/get-started/thank-you" element={<ThankYou />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/no-workspace" element={<NoWorkspace />} />
