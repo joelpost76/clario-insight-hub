@@ -20,6 +20,7 @@ import SIPOC from "./pages/SIPOC";
 import Workflow from "./pages/Workflow";
 import Baseline from "./pages/Baseline";
 import Admin from "./pages/Admin";
+import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
@@ -45,6 +46,14 @@ const App = () => (
               element={
                 <RequireAdmin>
                   <Admin />
+                </RequireAdmin>
+              }
+            />
+            <Route
+              path="/admin/leads"
+              element={
+                <RequireAdmin>
+                  <AdminLeads />
                 </RequireAdmin>
               }
             />
