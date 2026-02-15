@@ -13,7 +13,8 @@ import {
   Check,
   Circle,
   Settings,
-  BookOpen
+  BookOpen,
+  Megaphone
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -182,6 +183,19 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
                     >
                       <Settings className="h-4 w-4" />
                       {!collapsed && <span>Admin Dashboard</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink 
+                      to="/admin/leads" 
+                      end 
+                      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+                      activeClassName="bg-sidebar-accent font-medium text-primary"
+                    >
+                      <Megaphone className="h-4 w-4" />
+                      {!collapsed && <span>Sales Leads</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
