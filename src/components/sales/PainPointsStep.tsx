@@ -1,7 +1,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Check } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useServiceSelection } from '@/contexts/ServiceSelectionContext';
@@ -74,7 +74,11 @@ export function PainPointsStep({ onNext }: PainPointsStepProps) {
                       }
                     }}
                   >
-                    <Checkbox checked={isChecked} />
+                    <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
+                      isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'
+                    }`}>
+                      {isChecked && <Check className="h-3 w-3" />}
+                    </div>
                     <span className="text-sm text-foreground">{label}</span>
                   </div>
                 );

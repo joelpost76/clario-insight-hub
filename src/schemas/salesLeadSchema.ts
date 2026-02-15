@@ -5,7 +5,10 @@ export const companyInfoSchema = z.object({
   companyName: z.string().min(2, 'Company name required').max(100),
   industry: z.enum(['residential_design_build', 'commercial_construction', 'remodeling', 'mixed', 'other', '']).optional(),
   revenueRange: z.enum(['under_1m', '1m-5m', '5m-10m', '10m-25m', '25m_plus', '']).optional(),
-  headcount: z.union([z.number().positive().int(), z.literal('')]).optional(),
+  headcount: z.preprocess(
+    (val) => (val === '' || val === undefined || Number.isNaN(val) ? undefined : Number(val)),
+    z.number().positive().int().optional()
+  ),
 });
 
 export const painPointsSchema = z.object({
