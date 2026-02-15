@@ -324,6 +324,89 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_leads: {
+        Row: {
+          accepted_at: string | null
+          company_name: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string | null
+          contact_title: string | null
+          created_at: string
+          headcount: number | null
+          id: string
+          industry: string | null
+          notes: string | null
+          pain_points: string[]
+          qualified_at: string | null
+          referral_source: string | null
+          revenue_range: string | null
+          services_selected: Json
+          status: string
+          total_estimated_investment: Json | null
+          updated_at: string
+          urgency: string
+          utm_params: Json | null
+          workspace_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_name: string
+          contact_email: string
+          contact_name: string
+          contact_phone?: string | null
+          contact_title?: string | null
+          created_at?: string
+          headcount?: number | null
+          id?: string
+          industry?: string | null
+          notes?: string | null
+          pain_points?: string[]
+          qualified_at?: string | null
+          referral_source?: string | null
+          revenue_range?: string | null
+          services_selected: Json
+          status?: string
+          total_estimated_investment?: Json | null
+          updated_at?: string
+          urgency: string
+          utm_params?: Json | null
+          workspace_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          company_name?: string
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string | null
+          contact_title?: string | null
+          created_at?: string
+          headcount?: number | null
+          id?: string
+          industry?: string | null
+          notes?: string | null
+          pain_points?: string[]
+          qualified_at?: string | null
+          referral_source?: string | null
+          revenue_range?: string | null
+          services_selected?: Json
+          status?: string
+          total_estimated_investment?: Json | null
+          updated_at?: string
+          urgency?: string
+          utm_params?: Json | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_leads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sipocs: {
         Row: {
           created_at: string
@@ -576,6 +659,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_lead_score: { Args: { lead_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
