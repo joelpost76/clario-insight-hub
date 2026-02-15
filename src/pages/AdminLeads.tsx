@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ArrowLeft, RefreshCw, Eye, ChevronUp, ChevronDown, Megaphone } from "lucide-react";
+import { Search, ArrowLeft, RefreshCw, Eye, ChevronUp, ChevronDown, Megaphone, FolderPlus, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 
@@ -97,6 +97,8 @@ export default function AdminLeads() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const [statusChangeTarget, setStatusChangeTarget] = useState<{ lead: SalesLead; newStatus: string } | null>(null);
+  const [createWsTarget, setCreateWsTarget] = useState<SalesLead | null>(null);
+  const [creatingWs, setCreatingWs] = useState(false);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -422,6 +424,23 @@ export default function AdminLeads() {
                   </section>
                 )}
 
+                {/* Create workspace action */}
+                {selectedLead.status !== "workspace_created" && (
+                  <section>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Onboard Client</h3>
+                    <Button
+                      onClick={() => setCreateWsTarget(selectedLead)}
+                      className="gap-2"
+                    >
+                      <FolderPlus className="h-4 w-4" />
+                      Create Workspace from Lead
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Creates an account &amp; workspace from this lead's company data.
+                    </p>
+                  </section>
+                )}
+
                 {/* Status change */}
                 <section>
                   <h3 className="text-sm font-semibold text-muted-foreground mb-2">Update Status</h3>
@@ -467,6 +486,51 @@ export default function AdminLeads() {
               }
             >
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create workspace confirmation */}
+      <AlertDialog open={!!createWsTarget} onOpenChange={(open) => !open && setCreateWsTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create workspace from lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a new account and Clario™ Diagnostic workspace for{" "}
+              <strong>{createWsTarget?.company_name}</strong> and update the lead status to "Workspace Created".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={creatingWs}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={creatingWs}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!createWsTarget) return;
+                setCreatingWs(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("create-workspace-from-lead", {
+                    body: { lead_id: createWsTarget.id },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  toast({
+                    title: "Workspace created!",
+                    description: `Account and workspace created for ${data.company_name}.`,
+                  });
+                  setCreateWsTarget(null);
+                  setDetailOpen(false);
+                  fetchLeads();
+                } catch (err: any) {
+                  toast({ title: "Failed to create workspace", description: err.message, variant: "destructive" });
+                } finally {
+                  setCreatingWs(false);
+                }
+              }}
+            >
+              {creatingWs && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create Workspace
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
