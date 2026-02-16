@@ -12,74 +12,64 @@ export function HeroSection() {
     return () => clearTimeout(t);
   }, []);
 
+  const anim = (delay: string) =>
+    `transition-all duration-700 ${delay} ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`;
+
   return (
-    <section className="relative overflow-hidden py-28 md:py-36 px-4">
-      {/* Subtle grid background */}
+    <section className="relative overflow-hidden py-24 md:py-36 px-4">
+      {/* Grid bg */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.04]"
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
         style={{
           backgroundImage:
             'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)',
           backgroundSize: '48px 48px',
         }}
       />
-
-      {/* Accent glow */}
+      {/* Glow */}
       <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px]" />
 
-      <div className="relative max-w-3xl mx-auto text-center space-y-8">
-        {/* Eyebrow */}
-        <span
-          className={`inline-block text-xs font-semibold tracking-[0.25em] uppercase text-primary transition-all duration-700 ${
-            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-          }`}
-        >
-          Operations Consulting
+      <div className="relative max-w-4xl mx-auto text-center space-y-8">
+        <span className={`inline-block text-xs font-semibold tracking-[0.25em] uppercase text-primary ${anim('delay-0')}`}>
+          Operations Consulting for Design + Build
         </span>
 
-        {/* Headline */}
-        <h1
-          className={`text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight transition-all duration-700 delay-150 ${
-            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
-          Fix the work before it
+        <h1 className={`text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight ${anim('delay-100')}`}>
+          Your $5M Company Has 47 Problems.
           <br />
-          <span className="text-primary">burns out</span> the people
+          But Only <span className="text-primary">ONE Constraint.</span>
         </h1>
 
-        {/* Subheadline */}
-        <p
-          className={`text-lg md:text-xl text-muted-foreground leading-relaxed max-w-xl mx-auto transition-all duration-700 delay-300 ${
-            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
-          Root-cause clarity. Systems that stick. Humane performance.
+        <p className={`text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto ${anim('delay-200')}`}>
+          A 2-week diagnostic to find the ONE bottleneck costing you margin,
+          timelines, and sanity—then a 90-day plan to fix it.
+          <br />
+          <span className="font-medium text-foreground">For residential Design+Build companies doing $3M–$10M.</span>
         </p>
 
+        {/* Proof points */}
+        <div className={`flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium text-foreground ${anim('delay-300')}`}>
+          <span>+1–2% net margin</span>
+          <span className="text-border">·</span>
+          <span>−25% rework</span>
+          <span className="text-border">·</span>
+          <span>+30% change order capture</span>
+        </div>
+
         {/* CTA */}
-        <div
-          className={`transition-all duration-700 delay-[450ms] ${
-            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
+        <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 ${anim('delay-[400ms]')}`}>
           <Button
             size="lg"
             className="text-base px-8 py-6 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
             onClick={() => navigate('/get-started/configure')}
           >
-            Start with a Diagnostic
+            Find Your Constraint — $7,500
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
 
-        {/* Trust line */}
-        <p
-          className={`text-xs text-muted-foreground/60 tracking-wide uppercase transition-all duration-700 delay-[600ms] ${
-            visible ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          2-week diagnostic · Starting at $7,500
+        <p className={`text-xs text-muted-foreground/70 tracking-wide ${anim('delay-[550ms]')}`}>
+          Limited: First 3 founding clients only · Expires March 31, 2026
         </p>
       </div>
     </section>
