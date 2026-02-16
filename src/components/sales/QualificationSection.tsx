@@ -22,7 +22,7 @@ const NOT_IDEAL = [
 export function QualificationSection() {
   const { ref, className: revealClass } = useScrollReveal();
   return (
-    <section className="py-20 px-4 bg-accent">
+    <section className="py-12 px-4 bg-accent">
       <div ref={ref} className={`max-w-4xl mx-auto space-y-10 ${revealClass}`}>
         <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center">
           Is This Right for You?

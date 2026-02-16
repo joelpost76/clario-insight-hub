@@ -16,7 +16,7 @@ export function HeroSection() {
     `transition-all duration-700 ${delay} ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`;
 
   return (
-    <section className="relative overflow-hidden py-24 md:py-36 px-4">
+    <section className="relative overflow-hidden py-16 md:py-24 px-4">
       {/* Grid bg */}
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.035]"

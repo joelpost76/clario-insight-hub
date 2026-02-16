@@ -8,7 +8,7 @@ export function FinalCTASection() {
   const { ref, className: revealClass } = useScrollReveal();
 
   return (
-    <section className="py-24 px-4 text-center">
+    <section className="py-12 px-4 text-center">
       <div ref={ref} className={`max-w-2xl mx-auto space-y-6 ${revealClass}`}>
         <h2 className="text-2xl md:text-3xl font-bold text-foreground">
           Ready to Find Your Constraint?
