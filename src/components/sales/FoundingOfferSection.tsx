@@ -9,7 +9,7 @@ export function FoundingOfferSection() {
   const { ref, className: revealClass } = useScrollReveal();
 
   return (
-    <section className="py-20 px-4">
+    <section className="py-12 px-4">
       <div ref={ref} className={`max-w-2xl mx-auto space-y-10 ${revealClass}`}>
         <div className="text-center space-y-3">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground">
