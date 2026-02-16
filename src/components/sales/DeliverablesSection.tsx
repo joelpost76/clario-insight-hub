@@ -1,5 +1,6 @@
 import { GitBranch, AlertTriangle, Route } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const DELIVERABLES = [
   {
@@ -23,9 +24,10 @@ const DELIVERABLES = [
 ];
 
 export function DeliverablesSection() {
+  const { ref, className: revealClass } = useScrollReveal();
   return (
     <section className="py-20 px-4">
-      <div className="max-w-5xl mx-auto space-y-12">
+      <div ref={ref} className={`max-w-5xl mx-auto space-y-12 ${revealClass}`}>
         <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center">
           What You Walk Away With
         </h2>

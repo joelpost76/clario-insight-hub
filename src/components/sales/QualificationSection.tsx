@@ -1,4 +1,5 @@
 import { Check, X } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const IDEAL = [
   '$3M–$10M residential Design+Build companies',
@@ -19,9 +20,10 @@ const NOT_IDEAL = [
 ];
 
 export function QualificationSection() {
+  const { ref, className: revealClass } = useScrollReveal();
   return (
     <section className="py-20 px-4 bg-accent">
-      <div className="max-w-4xl mx-auto space-y-10">
+      <div ref={ref} className={`max-w-4xl mx-auto space-y-10 ${revealClass}`}>
         <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center">
           Is This Right for You?
         </h2>

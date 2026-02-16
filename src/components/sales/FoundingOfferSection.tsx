@@ -2,13 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 export function FoundingOfferSection() {
   const navigate = useNavigate();
+  const { ref, className: revealClass } = useScrollReveal();
 
   return (
     <section className="py-20 px-4">
-      <div className="max-w-2xl mx-auto space-y-10">
+      <div ref={ref} className={`max-w-2xl mx-auto space-y-10 ${revealClass}`}>
         <div className="text-center space-y-3">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground">
             Founding Client Program: First 3 Only
