@@ -1,5 +1,6 @@
 import { Mic, Search, Map } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const STAGES = [
   {
@@ -38,9 +39,10 @@ const STAGES = [
 ];
 
 export function HowItWorks() {
+  const { ref, className: revealClass } = useScrollReveal();
   return (
     <section className="py-20 px-4 bg-accent">
-      <div className="max-w-5xl mx-auto space-y-12">
+      <div ref={ref} className={`max-w-5xl mx-auto space-y-12 ${revealClass}`}>
         <div className="text-center space-y-2">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground">
             How Clario™ Works: 2 Weeks to Clarity

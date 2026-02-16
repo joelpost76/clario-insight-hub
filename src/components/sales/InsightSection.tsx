@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const SYMPTOMS = [
   'Late jobs',
@@ -10,9 +11,10 @@ const SYMPTOMS = [
 ];
 
 export function InsightSection() {
+  const { ref, className: revealClass } = useScrollReveal();
   return (
     <section className="py-20 px-4">
-      <div className="max-w-5xl mx-auto space-y-12">
+      <div ref={ref} className={`max-w-5xl mx-auto space-y-12 ${revealClass}`}>
         <div className="text-center space-y-3">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground">
             You're Fixing Symptoms, Not the Source

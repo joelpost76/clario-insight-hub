@@ -1,13 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 export function FinalCTASection() {
   const navigate = useNavigate();
+  const { ref, className: revealClass } = useScrollReveal();
 
   return (
     <section className="py-24 px-4 text-center">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div ref={ref} className={`max-w-2xl mx-auto space-y-6 ${revealClass}`}>
         <h2 className="text-2xl md:text-3xl font-bold text-foreground">
           Ready to Find Your Constraint?
         </h2>
