@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientModules, ClientModule, ModuleId } from "@/hooks/useClientModules";
+import { toast } from "sonner";
 
 const WELCOME_SEEN_PREFIX = "welcome_seen_";
 
-// ─── Module icons (matching wireframe) ───────────────────────────────────────
+// ─── Module icons ─────────────────────────────────────────────────────────────
 const moduleIcons: Record<ModuleId, React.ReactNode> = {
   rpe: (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -48,7 +49,7 @@ interface Client {
   updated_at: string;
 }
 
-// ─── Health Ring (exact wireframe) ───────────────────────────────────────────
+// ─── Health Ring ──────────────────────────────────────────────────────────────
 function HealthRing({ score, size = 48 }: { score: number | null; size?: number }) {
   if (!score) {
     return (
@@ -75,7 +76,7 @@ function HealthRing({ score, size = 48 }: { score: number | null; size?: number 
   );
 }
 
-// ─── Module Pill (2-col card grid style from wireframe) ──────────────────────
+// ─── Module Pill ──────────────────────────────────────────────────────────────
 function ModulePill({ module }: { module: ClientModule }) {
   const statusConfig: Record<string, { bg: string; border: string }> = {
     complete:    { bg: "#F0F4EE", border: "#C8D8C0" },
@@ -227,7 +228,7 @@ function ClientCard({
   );
 }
 
-// ─── Stat Card (exact wireframe) ──────────────────────────────────────────────
+// ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
   return (
     <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 12, padding: "20px 24px" }}>
@@ -306,7 +307,7 @@ function DetailPanel({
                   cursor: isLocked ? "default" : "pointer",
                   transition: "all 0.15s",
                 }}
-                onClick={() => (isAvailable || isProgress) && onRun(mod)}
+                onClick={() => !isLocked && onRun(mod)}
               >
                 <div style={{
                   width: 32, height: 32, borderRadius: 8,
@@ -351,6 +352,14 @@ function DetailPanel({
                     onClick={(e) => { e.stopPropagation(); onRun(mod); }}
                     style={{ padding: "4px 10px", border: "1.5px solid #4A5C3A", borderRadius: 6, background: "transparent", color: "#4A5C3A", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
                     Run →
+                  </button>
+                )}
+                {isProgress && (
+                  <button
+                    className="run-btn"
+                    onClick={(e) => { e.stopPropagation(); onRun(mod); }}
+                    style={{ padding: "4px 10px", border: "1.5px solid #4A5C3A", borderRadius: 6, background: "transparent", color: "#4A5C3A", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
+                    Resume →
                   </button>
                 )}
               </div>
@@ -399,7 +408,7 @@ function DetailPanel({
   );
 }
 
-// ─── Add Client Modal (exact wireframe) ───────────────────────────────────────
+// ─── Add Client Modal ─────────────────────────────────────────────────────────
 function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: string; onClose: () => void; onSuccess: (id: string) => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: "", industry: "", revenue_range: "", headcount: "" });
@@ -409,7 +418,13 @@ function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: stri
     mutationFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .insert({ workspace_id: workspaceId, name: form.name.trim(), industry: form.industry || null, revenue_range: form.revenue_range || null, headcount: form.headcount ? parseInt(form.headcount) : null })
+        .insert({
+          workspace_id: workspaceId,
+          name: form.name.trim(),
+          industry: form.industry || null,
+          revenue_range: form.revenue_range || null,
+          headcount: form.headcount ? parseInt(form.headcount) : null,
+        })
         .select("id").single();
       if (error) throw error;
       return data;
@@ -421,7 +436,13 @@ function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: stri
     onError: (err: any) => setError(err.message ?? "Failed to create client"),
   });
 
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "10px 14px", border: "1.5px solid #EEF0EC", borderRadius: 9, fontSize: 13, color: "#1A2018", background: "#FAFAFA", outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "10px 14px", border: "1.5px solid #EEF0EC",
+    borderRadius: 9, fontSize: 13, color: "#1A2018", background: "#FAFAFA",
+    outline: "none", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box",
+  };
+
+  const INDUSTRIES = ["Design-Build", "Remodeling", "Custom Homes", "Renovation", "Other"];
 
   return (
     <div
@@ -437,50 +458,76 @@ function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: stri
           </button>
         </div>
 
-        {[
-          { label: "Company Name", placeholder: "e.g. Harlow Design + Build", key: "name" },
-          { label: "Industry", placeholder: "e.g. Design-Build, Remodeling...", key: "industry" },
-          { label: "Annual Revenue", placeholder: "e.g. $12M", key: "revenue_range" },
-          { label: "Employee Count", placeholder: "e.g. 34", key: "headcount" },
-        ].map((field) => (
-          <div key={field.key} style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
-              {field.label}{field.key === "name" ? " *" : ""}
-            </label>
-            <input
-              style={inputStyle}
-              placeholder={field.placeholder}
-              value={form[field.key as keyof typeof form]}
-              onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-              type={field.key === "headcount" ? "number" : "text"}
-              autoFocus={field.key === "name"}
-            />
-          </div>
-        ))}
-
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 10, fontFamily: "'DM Sans', sans-serif" }}>Start with module</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {[
-              { id: "rpe", label: "RPE Assessment", desc: "Start here — baseline diagnostic", selected: true },
-              { id: "scope", label: "Scope Creep", desc: "Upload QB job costing data", selected: false },
-            ].map((m) => (
-              <div key={m.id} style={{ padding: "12px 14px", border: `1.5px solid ${m.selected ? "#4A5C3A" : "#EEF0EC"}`, borderRadius: 10, cursor: "pointer", background: m.selected ? "#F7FAF5" : "#FAFAFA" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: m.selected ? "#4A5C3A" : "#1A2018", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>{m.label}</div>
-                <div style={{ fontSize: 11, color: "#9CA89A", fontFamily: "'DM Sans', sans-serif" }}>{m.desc}</div>
-              </div>
-            ))}
-          </div>
+        {/* Company Name */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
+            Company Name *
+          </label>
+          <input
+            style={inputStyle}
+            placeholder="e.g. Harlow Design + Build"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            autoFocus
+          />
         </div>
 
-        {error && <p style={{ color: "#C0392B", fontSize: 13, marginTop: 12, fontFamily: "'DM Sans', sans-serif" }}>{error}</p>}
+        {/* Industry */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
+            Industry
+          </label>
+          <select
+            style={{ ...inputStyle, appearance: "none" as const }}
+            value={form.industry}
+            onChange={(e) => setForm({ ...form, industry: e.target.value })}
+          >
+            <option value="">Select industry...</option>
+            {INDUSTRIES.map((ind) => (
+              <option key={ind} value={ind}>{ind}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Annual Revenue */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
+            Annual Revenue
+          </label>
+          <input
+            style={inputStyle}
+            placeholder="e.g. $12M"
+            value={form.revenue_range}
+            onChange={(e) => setForm({ ...form, revenue_range: e.target.value })}
+          />
+        </div>
+
+        {/* Employee Count */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
+            Employee Count
+          </label>
+          <input
+            style={inputStyle}
+            placeholder="e.g. 34"
+            type="number"
+            value={form.headcount}
+            onChange={(e) => setForm({ ...form, headcount: e.target.value })}
+          />
+        </div>
+
+        {error && <p style={{ color: "#C0392B", fontSize: 13, marginTop: 4, fontFamily: "'DM Sans', sans-serif" }}>{error}</p>}
 
         <button
-          onClick={() => { if (!form.name.trim()) { setError("Company name is required"); return; } setError(null); mutation.mutate(); }}
+          onClick={() => {
+            if (!form.name.trim()) { setError("Company name is required"); return; }
+            setError(null);
+            mutation.mutate();
+          }}
           disabled={mutation.isPending}
           style={{ width: "100%", marginTop: 20, padding: "12px", background: mutation.isPending ? "#7A9A64" : "#4A5C3A", color: "white", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: "-0.2px", transition: "background 0.15s" }}
         >
-          {mutation.isPending ? "Creating…" : "Create Client & Start Diagnostic →"}
+          {mutation.isPending ? "Creating…" : "Add Client →"}
         </button>
       </div>
     </div>
@@ -488,7 +535,15 @@ function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: stri
 }
 
 // ─── ClientRow: fetches modules + derives health score ────────────────────────
-function ClientRow({ client, selectedId, onSelect }: { client: Client; selectedId: string | null; onSelect: (id: string, modules: ClientModule[], health: number | null) => void }) {
+function ClientRow({
+  client,
+  selectedId,
+  onSelect,
+}: {
+  client: Client;
+  selectedId: string | null;
+  onSelect: (id: string, modules: ClientModule[], health: number | null) => void;
+}) {
   const { data: modules = [] } = useClientModules(client.id);
   const healthScore = useMemo(() => {
     const rpe = modules.find((m) => m.id === "rpe" && m.status === "complete");
@@ -506,13 +561,60 @@ function ClientRow({ client, selectedId, onSelect }: { client: Client; selectedI
   );
 }
 
+// ─── Hub Stats aggregator ─────────────────────────────────────────────────────
+function useHubStats(workspaceId: string | null) {
+  return useQuery({
+    queryKey: ["hub-stats", workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return { modulesRun: 0, activeDiagnostics: 0, avgHealthScore: null as number | null };
+
+      const [rpeRes, scopeRes] = await Promise.all([
+        supabase
+          .from("assessments")
+          .select("id, is_complete, total_weighted_score, client_id")
+          .eq("workspace_id", workspaceId),
+        supabase
+          .from("scope_creep_assessments")
+          .select("id, is_complete, client_id")
+          .eq("workspace_id", workspaceId),
+      ]);
+
+      const rpeData = rpeRes.data ?? [];
+      const scopeData = scopeRes.data ?? [];
+
+      const modulesRun = rpeData.length + scopeData.length;
+      const activeDiagnostics = rpeData.filter((a) => !a.is_complete).length + scopeData.filter((a) => !a.is_complete).length;
+
+      // Avg health: most recent completed RPE per client
+      const completedByClient: Record<string, number> = {};
+      for (const a of rpeData) {
+        if (a.is_complete && a.total_weighted_score != null) {
+          if (!(a.client_id in completedByClient)) {
+            completedByClient[a.client_id] = a.total_weighted_score;
+          }
+        }
+      }
+      const scores = Object.values(completedByClient);
+      const avgHealthScore = scores.length > 0
+        ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
+        : null;
+
+      return { modulesRun, activeDiagnostics, avgHealthScore };
+    },
+    enabled: !!workspaceId,
+  });
+}
+
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { workspace, workspaceId } = useWorkspace();
+  const { workspaceId } = useWorkspace();
   const queryClient = useQueryClient();
 
-  const welcomeSeen = workspaceId ? localStorage.getItem(`${WELCOME_SEEN_PREFIX}${workspaceId}`) === "true" : true;
+  // Mark welcome seen whenever hub loads
+  if (workspaceId) {
+    localStorage.setItem(`${WELCOME_SEEN_PREFIX}${workspaceId}`, "true");
+  }
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "needs_attention">("all");
@@ -525,12 +627,18 @@ export default function Dashboard() {
     queryKey: ["hub-clients", workspaceId],
     queryFn: async () => {
       if (!workspaceId) return [];
-      const { data, error } = await supabase.from("clients").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("updated_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
     enabled: !!workspaceId,
   });
+
+  const { data: stats } = useHubStats(workspaceId);
 
   const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
 
@@ -539,30 +647,24 @@ export default function Dashboard() {
     return true;
   }), [clients, search]);
 
-  // Mark welcome seen whenever hub loads (welcome page still accessible via /welcome)
-  if (workspaceId && !welcomeSeen) {
-    localStorage.setItem(`${WELCOME_SEEN_PREFIX}${workspaceId}`, "true");
-  }
-
   const handleSelect = (id: string, modules: ClientModule[], health: number | null) => {
     setSelectedClientId(id);
     setSelectedModules(modules);
     setSelectedHealth(health);
   };
 
+  // Navigation per module/status table
   const handleRun = (mod: ClientModule) => {
     if (!selectedClientId) return;
-    if (mod.id === "scope") {
-      navigate(`/scope-creep/${selectedClientId}`);
-    } else if (mod.id === "rpe") {
+    if (mod.id === "rpe") {
+      // RPEInit handles create-or-resume logic
       navigate(`/rpe/${selectedClientId}`);
+    } else if (mod.id === "scope") {
+      navigate(`/scope-creep/${selectedClientId}`);
     } else {
-      navigate(`/dashboard`);
+      toast(`${mod.name} — Coming Soon`, { description: "This module will be available in the next release." });
     }
   };
-
-  const activeCount = clients.filter((c) => true).length; // placeholder
-  const inProgressCount = 0; // will come from module data
 
   return (
     <AppLayout>
@@ -578,15 +680,29 @@ export default function Dashboard() {
       `}</style>
 
       <div style={{ fontFamily: "'DM Sans', sans-serif", color: "#1A2018" }}>
+
         {/* Page header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: "#1A2018", letterSpacing: "-0.6px", fontFamily: "'DM Sans', sans-serif" }}>
-              Client Hub
-            </h1>
-            <p style={{ margin: "6px 0 0", fontSize: 14, color: "#6B7A67" }}>
-              {clients.length} active client{clients.length !== 1 ? "s" : ""} · {clients.length} diagnostics available
-            </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Crosshair/target icon badge */}
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "#4A5C3A", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(74,92,58,0.25)" }}>
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="white" strokeWidth="1.5"/>
+                <circle cx="11" cy="11" r="3.5" stroke="white" strokeWidth="1.5"/>
+                <line x1="11" y1="2" x2="11" y2="5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="11" y1="16.5" x2="11" y2="20" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="2" y1="11" x2="5.5" y2="11" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="16.5" y1="11" x2="20" y2="11" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1A2018", letterSpacing: "-0.6px", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.1 }}>
+                Clario<sup style={{ fontSize: 14, color: "#9CA89A", fontWeight: 500, letterSpacing: 0 }}>™</sup>
+              </h1>
+              <p style={{ margin: "3px 0 0", fontSize: 13, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
+                Diagnostic Platform
+              </p>
+            </div>
           </div>
           <button
             className="add-btn"
@@ -598,12 +714,26 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Stats row */}
+        {/* Stats row — client-centric */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
           <StatCard label="Total Clients" value={clients.length} sub="Active in workspace" />
-          <StatCard label="Avg Health Score" value="—" sub="RPE assessments needed" accent="#4A5C3A" />
-          <StatCard label="Modules Run" value="—" sub="Across all clients" />
-          <StatCard label="Est. Margin Identified" value="—" sub="Complete RPE to calculate" accent="#B8A94A" />
+          <StatCard
+            label="Avg Health Score"
+            value={stats?.avgHealthScore ?? "—"}
+            sub={stats?.avgHealthScore ? "Across completed RPE" : "RPE assessments needed"}
+            accent="#4A5C3A"
+          />
+          <StatCard
+            label="Modules Run"
+            value={stats?.modulesRun ?? "—"}
+            sub="Across all clients"
+          />
+          <StatCard
+            label="Active Diagnostics"
+            value={stats?.activeDiagnostics ?? "—"}
+            sub="In progress now"
+            accent="#B8A94A"
+          />
         </div>
 
         {/* Main content */}
@@ -694,7 +824,11 @@ export default function Dashboard() {
         <AddClientModal
           workspaceId={workspaceId}
           onClose={() => setShowAddModal(false)}
-          onSuccess={(id) => { setShowAddModal(false); setSelectedClientId(id); }}
+          onSuccess={(id) => {
+            setShowAddModal(false);
+            // Select the new client on the hub — consultant picks module from detail panel
+            setSelectedClientId(id);
+          }}
         />
       )}
     </AppLayout>

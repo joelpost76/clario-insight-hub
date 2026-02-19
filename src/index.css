@@ -61,6 +61,15 @@
 
     --radius: 0.5rem;
 
+    /* Hub-specific design tokens */
+    --hub-green: #4A5C3A;
+    --hub-gold: #B8A94A;
+    --hub-red: #C0392B;
+    --hub-bg: #F7F9F5;
+    --hub-border: #EEF0EC;
+    --hub-text: #1A2018;
+    --hub-text-muted: #6B7A67;
+
     /* Sidebar - charcoal dark for contrast */
     --sidebar-background: 213 13% 14%;
     --sidebar-foreground: 43 12% 90%;
