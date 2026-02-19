@@ -862,6 +862,7 @@ export type Database = {
       workspaces: {
         Row: {
           account_id: string
+          constraint_state: Json | null
           constraints_nonnegotiables: string[] | null
           created_at: string
           day_counter: number | null
@@ -878,6 +879,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          constraint_state?: Json | null
           constraints_nonnegotiables?: string[] | null
           created_at?: string
           day_counter?: number | null
@@ -894,6 +896,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          constraint_state?: Json | null
           constraints_nonnegotiables?: string[] | null
           created_at?: string
           day_counter?: number | null
