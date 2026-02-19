@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -7,25 +7,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   ChevronLeft,
   Loader2,
   Brain,
-  CheckCircle2,
   AlertTriangle,
   Info,
   Sparkles,
-  ChevronRight,
+  CheckCircle2,
 } from "lucide-react";
 import type {
   StructuredIntakeData,
   ConstraintAnalysis,
   ConstraintPageState,
+  ConstraintSource,
 } from "@/types/clarioConstraintTypes";
+import { buildStructuredIntakeDataForClient } from "@/types/clarioConstraintTypes";
 
-// ── Mock data ────────────────────────────────────────────────────────────────
+// ── Mock fallback intake data ────────────────────────────────────────────────
 
 const MOCK_INTAKE_DATA: StructuredIntakeData = {
   kickoff: {
@@ -76,81 +76,89 @@ const MOCK_INTAKE_DATA: StructuredIntakeData = {
       { name: "QuickBooks", purpose: "Accounting and invoicing" },
       { name: "Excel", purpose: "Change order tracking" },
     ],
-    currentMetrics: "Tracking revenue and job count. No consistent tracking of billing cycle time, CO capture rate, or WIP age.",
+    currentMetrics:
+      "Tracking revenue and job count. No consistent tracking of billing cycle time, CO capture rate, or WIP age.",
   },
 };
 
-const MOCK_ANALYSIS: ConstraintAnalysis = {
-  primaryConstraint:
-    "The PM-to-Finance closeout handoff is the binding constraint — informal, inconsistency-driven, and blocking billing for 2–3 weeks after job completion.",
-  constraintType: "Handoff / Process Gap",
-  upstreamCauses: [
-    "No standardized definition of job 'done' across PMs",
-    "Scheduling rework consumes PM bandwidth needed for closeout",
-    "Change orders tracked in Excel outside the PM tool (Buildertrend), creating data gaps",
-  ],
-  downstreamEffects: [
-    "Billing cycle time of 2–3 weeks post-completion → cash flow strain",
-    "AR aging increases as invoices go out late",
-    "Change order revenue leaks because informal CO tracking gets lost in closeout rush",
-    "Finance team spends time chasing PMs instead of processing invoices",
-  ],
-  supportingSignals: [
-    {
-      source: "PAIN_RATINGS",
-      fieldKey: "changeOrders",
-      description: "Change Orders rated 9/10 pain — highest single signal in the dataset",
-    },
-    {
-      source: "PAIN_RATINGS",
-      fieldKey: "billingCollections",
-      description: "Billing & Collections rated 9/10 — confirms billing delay is acute",
-    },
-    {
-      source: "PAIN_RATINGS",
-      fieldKey: "jobCostingVisibility",
-      description: "Job costing visibility rated 8/10 — PMs and finance lack shared data view",
-    },
-    {
-      source: "TOC",
-      fieldKey: "whereWorkWaitsLongest",
-      description: "PM-to-finance closeout handoff explicitly named as primary wait point",
-    },
-    {
-      source: "TOC",
-      fieldKey: "downstreamFiresIfFixed",
-      description:
-        "Client identified billing speed and AR aging as top downstream beneficiaries of fixing closeout",
-    },
-    {
-      source: "SYMPTOMS",
-      fieldKey: "selectedClusters",
-      description: "Change order capture and billing delays are both in top symptom clusters",
-    },
-    {
-      source: "DECISIONS",
-      fieldKey: "decisionBottlenecks",
-      description:
-        "No standard closeout checklist — PM signals job completion informally (texts/calls)",
-    },
-    {
-      source: "TOOLS",
-      fieldKey: "tools",
-      description:
-        "CO tracking in Excel outside Buildertrend creates data loss risk at the handoff moment",
-    },
-  ],
-  suggestedDiagnosticModules: [
-    "Workflow Map – PM Closeout to Finance Trigger",
-    "SIPOC – Billing & Collections Process",
-    "Scope Creep / Change Order Analyzer",
-    "Interviews – PM × Finance Handoff Friction",
-  ],
-  aiConfidence: "HIGH",
-  inferredDataQuality: "MEDIUM",
-  notesForConsultant:
-    "Data quality is MEDIUM — pain ratings are strong signals but TOC answers are brief. Recommend 30-min PM interview to confirm closeout sequence before locking the constraint. The Excel-based CO tracking is a quick win: consolidating into Buildertrend would reduce data loss independent of the handoff fix.",
-};
+// ── Mock analysis helper (inline – does NOT call real runConstraintAnalysis) ──
+
+async function runConstraintAnalysisMock(
+  _data: StructuredIntakeData
+): Promise<ConstraintAnalysis> {
+  // Simulate network latency
+  await new Promise((r) => setTimeout(r, 1600));
+  return {
+    primaryConstraint:
+      "The PM-to-Finance closeout handoff is the binding constraint — informal, inconsistency-driven, and blocking billing for 2–3 weeks after job completion.",
+    constraintType: "Handoff / Process Gap",
+    upstreamCauses: [
+      "No standardized definition of job 'done' across PMs",
+      "Scheduling rework consumes PM bandwidth needed for closeout",
+      "Change orders tracked in Excel outside Buildertrend, creating data gaps",
+    ],
+    downstreamEffects: [
+      "Billing cycle time of 2–3 weeks post-completion → cash flow strain",
+      "AR aging increases as invoices go out late",
+      "Change order revenue leaks because informal CO tracking gets lost in closeout rush",
+      "Finance team spends time chasing PMs instead of processing invoices",
+    ],
+    supportingSignals: [
+      {
+        source: "PAIN_RATINGS",
+        fieldKey: "changeOrders",
+        description: "Change Orders rated 9/10 — highest single signal in the dataset",
+      },
+      {
+        source: "PAIN_RATINGS",
+        fieldKey: "billingCollections",
+        description: "Billing & Collections rated 9/10 — confirms billing delay is acute",
+      },
+      {
+        source: "PAIN_RATINGS",
+        fieldKey: "jobCostingVisibility",
+        description: "Job costing visibility rated 8/10 — PMs and finance lack shared data view",
+      },
+      {
+        source: "TOC",
+        fieldKey: "whereWorkWaitsLongest",
+        description: "PM-to-finance closeout handoff explicitly named as primary wait point",
+      },
+      {
+        source: "TOC",
+        fieldKey: "downstreamFiresIfFixed",
+        description:
+          "Client identified billing speed and AR aging as top downstream beneficiaries of fixing closeout",
+      },
+      {
+        source: "SYMPTOMS",
+        fieldKey: "selectedClusters",
+        description: "Change order capture and billing delays are both in top symptom clusters",
+      },
+      {
+        source: "DECISIONS",
+        fieldKey: "decisionBottlenecks",
+        description: "No standard closeout checklist — PM signals completion informally (texts/calls)",
+      },
+      {
+        source: "TOOLS",
+        fieldKey: "tools",
+        description:
+          "CO tracking in Excel outside Buildertrend creates data loss risk at the handoff moment",
+      },
+    ],
+    suggestedDiagnosticModules: [
+      "Workflow Map – PM Closeout to Finance Trigger",
+      "SIPOC – Billing & Collections Process",
+      "Scope Creep / Change Order Analyzer",
+      "Interviews – PM × Finance Handoff Friction",
+    ],
+    aiConfidence: "HIGH",
+    inferredDataQuality: "MEDIUM",
+    notesForConsultant:
+      "Data quality is MEDIUM — pain ratings are strong signals but TOC answers are brief. Recommend a 30-min PM interview to confirm closeout sequence before locking the constraint. The Excel-based CO tracking is a quick win: consolidating into Buildertrend would reduce data loss independent of the handoff fix.",
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -169,7 +177,7 @@ function ConfidenceBadge({ level }: { level: "LOW" | "MEDIUM" | "HIGH" }) {
   );
 }
 
-const SOURCE_LABELS: Record<string, string> = {
+const SOURCE_LABELS: Record<ConstraintSource, string> = {
   SYMPTOMS: "Symptoms",
   PAIN_RATINGS: "Pain Ratings",
   TOC: "TOC",
@@ -179,6 +187,16 @@ const SOURCE_LABELS: Record<string, string> = {
   KICKOFF: "Kickoff",
 };
 
+// Group signals by source
+function groupSignals(signals: ConstraintAnalysis["supportingSignals"]) {
+  return signals.reduce<Record<string, typeof signals>>((acc, s) => {
+    const key = SOURCE_LABELS[s.source] ?? s.source;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(s);
+    return acc;
+  }, {});
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Constraint() {
@@ -186,46 +204,62 @@ export default function Constraint() {
   const { workspaceId } = useWorkspace();
   const { toast } = useToast();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [initLoading, setInitLoading] = useState(true);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+
   const [structuredData, setStructuredData] = useState<StructuredIntakeData | null>(null);
   const [pageState, setPageState] = useState<ConstraintPageState>({
     aiAnalysis: undefined,
     consultantEdits: undefined,
   });
 
-  const [finalConstraint, setFinalConstraint] = useState("");
-  const [finalNotes, setFinalNotes] = useState("");
-  const [accepted, setAccepted] = useState(false);
+  // Editable fields (seeded from AI analysis when it loads)
+  const [editConstraint, setEditConstraint] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
-  const analysis = pageState.aiAnalysis;
+  // ── On mount: load structured intake data ──────────────────────────────────
+  useEffect(() => {
+    async function loadData() {
+      setInitLoading(true);
+      setInitError(null);
+      try {
+        // workspaceId is the closest proxy for clientId in this app's architecture
+        const data = await buildStructuredIntakeDataForClient(workspaceId ?? "");
+        setStructuredData(data);
+      } catch {
+        // "not implemented" — use mock data so the page renders during development
+        setStructuredData(MOCK_INTAKE_DATA);
+      } finally {
+        setInitLoading(false);
+      }
+    }
+    loadData();
+  }, [workspaceId]);
 
-  // ── Run analysis (mock) ──────────────────────────────────────────────────
+  // ── Run analysis (mock — does NOT call real runConstraintAnalysis) ──────────
   const handleRunAnalysis = async () => {
-    setLoading(true);
-    setError(null);
-
+    if (!structuredData) return;
+    setAnalysisLoading(true);
     try {
-      // TODO: replace with real buildStructuredIntakeDataForClient + runConstraintAnalysis
-      await new Promise((r) => setTimeout(r, 1800)); // simulate network latency
-      setStructuredData(MOCK_INTAKE_DATA);
-      setPageState((prev) => ({ ...prev, aiAnalysis: MOCK_ANALYSIS }));
-      setFinalConstraint(MOCK_ANALYSIS.primaryConstraint);
+      const result = await runConstraintAnalysisMock(structuredData);
+      setPageState((prev) => ({ ...prev, aiAnalysis: result }));
+      setEditConstraint(result.primaryConstraint);
+      setEditNotes(prev => prev || "");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
-      setError(msg);
       toast({ title: "Analysis failed", description: msg, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setAnalysisLoading(false);
     }
   };
 
-  // ── Accept constraint ────────────────────────────────────────────────────
-  const handleAccept = () => {
-    if (!finalConstraint.trim()) {
+  // ── Set as working constraint ──────────────────────────────────────────────
+  const handleSetConstraint = () => {
+    if (!editConstraint.trim()) {
       toast({
         title: "Constraint required",
-        description: "Enter or confirm the constraint before accepting.",
+        description: "Enter or confirm the constraint statement before saving.",
         variant: "destructive",
       });
       return;
@@ -233,24 +267,60 @@ export default function Constraint() {
     setPageState((prev) => ({
       ...prev,
       consultantEdits: {
-        finalConstraint: finalConstraint.trim(),
-        finalNotes: finalNotes.trim() || undefined,
+        finalConstraint: editConstraint.trim(),
+        finalNotes: editNotes.trim() || undefined,
         acceptedAt: new Date().toISOString(),
       },
     }));
-    setAccepted(true);
-    toast({ title: "Constraint locked", description: "Your working constraint has been saved." });
+    toast({ title: "Working constraint set", description: "Locked for this engagement." });
   };
 
+  const analysis = pageState.aiAnalysis;
+  const isAccepted = !!pageState.consultantEdits?.acceptedAt;
+  const groupedSignals = analysis ? groupSignals(analysis.supportingSignals) : {};
+
+  // ── Loading / error states ─────────────────────────────────────────────────
+  if (initLoading) {
+    return (
+      <AppLayout>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (initError || !structuredData) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-3xl">
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="flex items-start gap-3 py-6">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div>
+                <p className="font-medium">Failed to load intake data</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {initError ?? "No structured data available. Complete Kickoff and Intake first."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
     <AppLayout>
       <div className="mx-auto max-w-3xl space-y-6">
-        {/* Header */}
+
+        {/* ── Header ── */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Constraint Analysis</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Constraint</h1>
             <p className="mt-1 text-muted-foreground">
-              AI-proposed working constraint based on Kickoff + Intake data.
+              Turn the intake into a working hypothesis we can test together.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate("/intake")}>
@@ -259,36 +329,29 @@ export default function Constraint() {
           </Button>
         </div>
 
-        {/* Empty state */}
-        {!analysis && !loading && (
+        {/* ── Pre-analysis info card ── */}
+        {!analysis && !analysisLoading && (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
                 <Brain className="h-7 w-7 text-primary" />
               </div>
-              <div>
-                <p className="font-medium">Run Constraint Analysis</p>
+              <div className="max-w-sm">
+                <p className="font-medium">Run the constraint analysis</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Reads Kickoff + Intake data and proposes the single constraint most likely to unlock
-                  downstream improvement.
+                  See a proposed working constraint based on the Kickoff + Intake data collected so far.
                 </p>
               </div>
-              {error && (
-                <div className="flex items-center gap-2 text-sm text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  {error}
-                </div>
-              )}
-              <Button onClick={handleRunAnalysis} disabled={loading} className="gap-2">
+              <Button onClick={handleRunAnalysis} className="gap-2">
                 <Sparkles className="h-4 w-4" />
-                Generate Analysis
+                Run AI Constraint Analysis
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Loading */}
-        {loading && (
+        {/* ── Analysis loading ── */}
+        {analysisLoading && (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -299,208 +362,203 @@ export default function Constraint() {
           </Card>
         )}
 
-        {/* Analysis results */}
-        {analysis && !loading && (
-          <div className="space-y-4">
-            {/* Primary constraint */}
-            <Card className="border-primary/30 bg-primary/5">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Primary Constraint</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">AI Confidence</span>
-                    <ConfidenceBadge level={analysis.aiConfidence} />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm font-medium leading-relaxed">{analysis.primaryConstraint}</p>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{analysis.constraintType}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    Data quality: <ConfidenceBadge level={analysis.inferredDataQuality} />
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+        {/* ── Analysis results ── */}
+        {analysis && !analysisLoading && (
+          <div className="space-y-6">
 
-            {/* Upstream causes + downstream effects */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wider">
-                    Upstream Causes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {analysis.upstreamCauses.map((c, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
-                        {c}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+            {/* ── Section: AI Proposed Constraint ── */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                AI Proposed Constraint
+              </h2>
 
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wider">
-                    Downstream Effects (if fixed)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {analysis.downstreamEffects.map((e, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                        {e}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Supporting signals */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Supporting Signals</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {analysis.supportingSignals.map((s, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 rounded-md border border-border bg-muted/40 px-3 py-2"
-                    >
-                      <Badge variant="outline" className="shrink-0 text-xs">
-                        {SOURCE_LABELS[s.source] ?? s.source}
-                      </Badge>
-                      <div>
-                        <p className="text-xs font-mono text-muted-foreground">{s.fieldKey}</p>
-                        <p className="text-sm">{s.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Suggested modules */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Suggested Diagnostic Modules</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-1.5">
-                  {analysis.suggestedDiagnosticModules.map((m, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <ChevronRight className="h-3.5 w-3.5 text-primary" />
-                      {m}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Consultant notes */}
-            <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <CardTitle className="text-sm text-amber-800 dark:text-amber-300">Notes for Consultant</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-amber-900 dark:text-amber-200">{analysis.notesForConsultant}</p>
-              </CardContent>
-            </Card>
-
-            <Separator />
-
-            {/* Consultant override / accept */}
-            {!accepted ? (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Lock Working Constraint</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Edit the AI proposal if needed, then accept to lock it as the working constraint
-                    for this engagement.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-4">
+                  {/* Editable constraint text area */}
                   <div className="space-y-2">
-                    <Label htmlFor="finalConstraint">Final Constraint Statement</Label>
+                    <Label htmlFor="editConstraint" className="text-sm font-medium">
+                      Constraint statement
+                    </Label>
                     <Textarea
-                      id="finalConstraint"
+                      id="editConstraint"
                       rows={3}
-                      value={finalConstraint}
-                      onChange={(e) => setFinalConstraint(e.target.value)}
+                      value={editConstraint}
+                      onChange={(e) => setEditConstraint(e.target.value)}
                       placeholder="One clear sentence describing the binding constraint…"
+                      className="resize-none"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="finalNotes">Consultant Notes (optional)</Label>
-                    <Textarea
-                      id="finalNotes"
-                      rows={3}
-                      value={finalNotes}
-                      onChange={(e) => setFinalNotes(e.target.value)}
-                      placeholder="Any additional context, caveats, or next steps…"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRunAnalysis}
-                      disabled={loading}
-                      className="gap-1"
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Re-run Analysis
-                    </Button>
-                    <Button onClick={handleAccept} className="gap-2">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Accept Constraint
-                    </Button>
+
+                  {/* Badges */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{analysis.constraintType}</Badge>
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      AI confidence
+                      <ConfidenceBadge level={analysis.aiConfidence} />
+                    </span>
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      Data quality
+                      <ConfidenceBadge level={analysis.inferredDataQuality} />
+                    </span>
                   </div>
                 </CardContent>
               </Card>
-            ) : (
+            </section>
+
+            {/* ── Section: Evidence ── */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Evidence
+              </h2>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {/* Left: signals grouped by source */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Signals pointing here</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {Object.entries(groupedSignals).map(([sourceLabel, signals]) => (
+                      <div key={sourceLabel}>
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {sourceLabel}
+                        </p>
+                        <ul className="space-y-1.5">
+                          {signals.map((s, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm">
+                              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                              <span>{s.description}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Right: causes + effects */}
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Upstream causes</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {analysis.upstreamCauses.map((c, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                            {c}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">
+                        Downstream effects if this constraint improves
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {analysis.downstreamEffects.map((e, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                            {e}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Section: Suggested Diagnostic Focus ── */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Suggested Diagnostic Focus
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {analysis.suggestedDiagnosticModules.map((m, i) => (
+                  <Badge key={i} variant="outline" className="px-3 py-1 text-sm font-normal">
+                    {m}
+                  </Badge>
+                ))}
+              </div>
+            </section>
+
+            {/* ── Section: Consultant Notes ── */}
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Consultant Notes
+              </h2>
+
+              {/* AI-generated note (read-only) */}
+              <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30">
+                <CardContent className="flex items-start gap-3 pt-4">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <p className="text-sm text-amber-900 dark:text-amber-200">
+                    {analysis.notesForConsultant}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Editable notes */}
+              <div className="space-y-2">
+                <Label htmlFor="editNotes" className="text-sm">
+                  Your notes (optional)
+                </Label>
+                <Textarea
+                  id="editNotes"
+                  rows={3}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Any additional context, caveats, or next steps…"
+                  className="resize-none"
+                />
+              </div>
+            </section>
+
+            {/* ── Accepted state ── */}
+            {isAccepted && (
               <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30">
                 <CardContent className="flex items-start gap-3 py-4">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">Constraint locked</p>
-                    <p className="text-sm text-emerald-800 dark:text-emerald-300">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">
+                      Working constraint set
+                    </p>
+                    <p className="mt-0.5 text-sm text-emerald-800 dark:text-emerald-300">
                       {pageState.consultantEdits?.finalConstraint}
                     </p>
                     {pageState.consultantEdits?.finalNotes && (
-                      <p className="text-xs text-emerald-700 dark:text-emerald-400 italic">
+                      <p className="mt-1 text-xs italic text-emerald-700 dark:text-emerald-400">
                         {pageState.consultantEdits.finalNotes}
                       </p>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-1 h-7 px-2 text-xs text-emerald-700 hover:text-emerald-900 dark:text-emerald-400"
-                      onClick={() => setAccepted(false)}
-                    >
-                      Edit
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Navigation */}
-            <div className="flex justify-end border-t border-border pt-4">
-              <Button onClick={() => navigate("/artifacts")} className="gap-2">
-                Next: Artifacts
-                <ChevronRight className="h-4 w-4" />
+            {/* ── Bottom actions ── */}
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRunAnalysis}
+                disabled={analysisLoading}
+                className="gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Re-run Analysis
+              </Button>
+
+              <Button onClick={handleSetConstraint} className="gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Set as Working Constraint
               </Button>
             </div>
           </div>
