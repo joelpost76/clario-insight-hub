@@ -539,7 +539,10 @@ export default function Dashboard() {
     return true;
   }), [clients, search]);
 
-  if (!welcomeSeen) return <Navigate to="/welcome" replace />;
+  // Mark welcome seen whenever hub loads (welcome page still accessible via /welcome)
+  if (workspaceId && !welcomeSeen) {
+    localStorage.setItem(`${WELCOME_SEEN_PREFIX}${workspaceId}`, "true");
+  }
 
   const handleSelect = (id: string, modules: ClientModule[], health: number | null) => {
     setSelectedClientId(id);
