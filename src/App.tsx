@@ -20,6 +20,7 @@ import Survey from "./pages/Survey";
 import SIPOC from "./pages/SIPOC";
 import Workflow from "./pages/Workflow";
 import Baseline from "./pages/Baseline";
+import FlowStabilization from "./pages/FlowStabilization";
 import Admin from "./pages/Admin";
 import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
@@ -152,6 +153,14 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <Baseline />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/flow-stabilization"
+              element={
+                <RequireWorkspace>
+                  <FlowStabilization />
                 </RequireWorkspace>
               }
             />

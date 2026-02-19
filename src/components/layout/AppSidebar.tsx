@@ -17,6 +17,7 @@ import {
   Megaphone,
   Brain,
   AlertTriangle,
+  Layers,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -53,6 +54,7 @@ const diagnosticSteps: NavItem[] = [
   { title: "Kickoff", url: "/kickoff", icon: Rocket },
   { title: "Intake", url: "/intake", icon: ClipboardList },
   { title: "Constraint", url: "/constraint", icon: Brain },
+  { title: "Flow Stabilization", url: "/flow-stabilization", icon: Layers },
   { title: "Artifacts", url: "/artifacts", icon: FileStack },
   { title: "Interviews", url: "/interviews", icon: Users },
   { title: "Team Survey", url: "/survey", icon: BarChart3 },
