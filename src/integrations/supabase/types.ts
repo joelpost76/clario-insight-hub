@@ -245,6 +245,41 @@ export type Database = {
           },
         ]
       }
+      flow_stabilization_state: {
+        Row: {
+          analysis: Json | null
+          created_at: string
+          id: string
+          responses: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_stabilization_state_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intake_responses: {
         Row: {
           created_at: string

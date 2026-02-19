@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,14 +65,57 @@ const defaultResponses: FlowStabilizationResponses = {
 };
 
 export default function FlowStabilization() {
+  const { workspaceId } = useWorkspace();
+
   const [responses, setResponses] = useState<FlowStabilizationResponses>(defaultResponses);
   const [analysis, setAnalysis] = useState<FlowStabilizationAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Load persisted state on mount ──────────────────────────────────────────
+  useEffect(() => {
+    if (!workspaceId) { setInitialLoading(false); return; }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any;
+    client
+      .from("flow_stabilization_state")
+      .select("responses, analysis")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle()
+      .then(({ data }: { data: { responses: FlowStabilizationResponses; analysis: FlowStabilizationAnalysis | null } | null }) => {
+        if (data) {
+          setResponses({ ...defaultResponses, ...data.responses });
+          if (data.analysis) setAnalysis(data.analysis);
+        }
+        setInitialLoading(false);
+      });
+  }, [workspaceId]);
+
+  // ── Persist helper (upsert) ─────────────────────────────────────────────────
+  const persist = async (
+    updatedResponses: FlowStabilizationResponses,
+    updatedAnalysis: FlowStabilizationAnalysis | null
+  ) => {
+    if (!workspaceId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = supabase as any;
+    await client
+      .from("flow_stabilization_state")
+      .upsert(
+        { workspace_id: workspaceId, responses: updatedResponses, analysis: updatedAnalysis },
+        { onConflict: "workspace_id" }
+      );
+  };
+
   const set = (key: keyof FlowStabilizationResponses) =>
-    (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-      setResponses((prev) => ({ ...prev, [key]: e.target.value }));
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const updated = { ...responses, [key]: e.target.value };
+      setResponses(updated);
+      // Debounce-free: persist on every change (small payloads, negligible cost)
+      persist(updated, analysis);
+    };
 
   const handleGenerate = async () => {
     // Validate required fields
@@ -88,12 +132,23 @@ export default function FlowStabilization() {
     try {
       const result = await runFlowStabilizationAnalysis(responses);
       setAnalysis(result);
+      await persist(responses, result);
     } catch (err) {
       setError("Analysis failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
