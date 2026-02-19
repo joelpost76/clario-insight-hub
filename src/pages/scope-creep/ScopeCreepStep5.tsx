@@ -3,70 +3,132 @@ import { useNavigate } from "react-router-dom";
 import { useScopeCreep } from "@/contexts/ScopeCreepContext";
 import { fmt$$, fmtPct } from "@/lib/calculations";
 
-// ─── Step 5: Impact Model & Recovery Scenarios ────────────────────────────────
+// ─── Step 5: Impact Model ──────────────────────────────────────────────────────
 
-const RECOVERY_SCENARIOS = [
-  {
-    id: "scope_doc",
-    label: "Pre-Construction Scope Lock",
-    desc: "Standardized scope documentation + client sign-off before mobilization",
-    lift: 0.4,
-  },
-  {
-    id: "co_process",
-    label: "CO Process Overhaul",
-    desc: "Real-time CO tracking, weekly reconciliation, digital signature workflow",
-    lift: 0.5,
-  },
-  {
-    id: "estimating_training",
-    label: "Estimating Accuracy Program",
-    desc: "Historical job costing analysis + allowance recalibration by project type",
-    lift: 0.3,
-  },
-  {
-    id: "field_checklist",
-    label: "Field Discovery Protocol",
-    desc: "Pre-construction site walk checklist to capture hidden conditions early",
-    lift: 0.25,
-  },
-];
+const S = {
+  green: "#4A5C3A",
+  gold: "#B8A94A",
+  red: "#C0392B",
+  text: "#1A2018",
+  muted: "#6B7A67",
+  faint: "#9CA89A",
+  border: "#EEF0EC",
+  bg: "#FAFAFA",
+  card: "#FFFFFF",
+  greenBg: "#F7FAF5",
+  greenBorder: "#C8D8C0",
+  mono: "'DM Mono', monospace" as const,
+  sans: "'DM Sans', sans-serif" as const,
+};
 
+// ─── Scenario table row ────────────────────────────────────────────────────────
+function ScenarioRow({
+  label,
+  current,
+  target90,
+  target12m,
+  mono,
+  color,
+}: {
+  label: string;
+  current: string;
+  target90: string;
+  target12m: string;
+  mono?: boolean;
+  color?: string;
+}) {
+  const font = mono ? S.mono : S.sans;
+  return (
+    <tr style={{ borderBottom: `1px solid ${S.border}` }}>
+      <td style={{ padding: "12px 14px", fontSize: 12, fontWeight: 600, color: S.text, fontFamily: S.sans }}>{label}</td>
+      <td style={{ padding: "12px 14px", fontSize: 13, fontFamily: font, color: color ?? S.muted, textAlign: "center" as const }}>{current}</td>
+      <td style={{ padding: "12px 14px", fontSize: 13, fontFamily: font, color: S.green, fontWeight: 700, textAlign: "center" as const }}>{target90}</td>
+      <td style={{ padding: "12px 14px", fontSize: 13, fontFamily: font, color: S.gold, fontWeight: 700, textAlign: "center" as const }}>{target12m}</td>
+    </tr>
+  );
+}
+
+// ─── RPE Impact callout ────────────────────────────────────────────────────────
+function RPEImpactPanel({ recoveryAmount, rpeScore }: { recoveryAmount: number; rpeScore: number | null }) {
+  if (rpeScore === null) return null;
+  // Model: recovering margin improves RPE score proportionally
+  const impliedScoreBoost = Math.min((recoveryAmount / 50_000) * 2, 8); // rough model
+  const impliedNewScore = Math.min(Math.round(rpeScore + impliedScoreBoost), 100);
+
+  return (
+    <div style={{
+      background: S.greenBg,
+      border: `1.5px solid ${S.greenBorder}`,
+      borderRadius: 12,
+      padding: "16px 20px",
+      marginBottom: 16,
+      display: "flex",
+      gap: 20,
+      alignItems: "center",
+    }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", border: `3px solid ${S.green}`, display: "flex", alignItems: "center", justifyContent: "center", background: "#EEF4EA" }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: S.green, fontFamily: S.mono }}>{impliedNewScore}</span>
+        </div>
+        <div style={{ fontSize: 9, color: S.faint, textAlign: "center" as const, marginTop: 4, fontFamily: S.sans }}>RPE score</div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: S.green, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 4, fontFamily: S.sans }}>
+          RPE Score Impact
+        </div>
+        <div style={{ fontSize: 13, color: S.text, fontFamily: S.sans, lineHeight: 1.5 }}>
+          Recovering <strong style={{ fontFamily: S.mono }}>{fmt$$(recoveryAmount)}</strong> in margin is modeled to lift the RPE score from{" "}
+          <strong style={{ fontFamily: S.mono, color: S.red }}>{rpeScore}</strong> →{" "}
+          <strong style={{ fontFamily: S.mono, color: S.green }}>{impliedNewScore}</strong> — moving the client toward the next performance tier.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export default function ScopeCreepStep5() {
   const navigate = useNavigate();
   const { assessment, metrics, updateImpactModel, completeStep, isLoading } = useScopeCreep();
 
-  const [selectedScenarios, setSelectedScenarios] = useState<string[]>([]);
-  const [targetAccuracy, setTargetAccuracy] = useState(5); // % overrun target
-  const [targetCORate, setTargetCORate] = useState(90); // % CO capture target
+  // Sliders
+  const [recoveryRate, setRecoveryRate] = useState(40); // 0–100%, what % of leakage is recoverable in 90d
+  const [targetOverrunPct, setTargetOverrunPct] = useState(5); // target accuracy: ≤X% overrun
+
   const [saving, setSaving] = useState(false);
 
+  // ── Core metrics ────────────────────────────────────────────────────────────
   const leakage = metrics?.total_margin_leakage ?? 0;
-  const revenue = metrics?.total_contract_value ?? 1;
   const currentAccuracy = metrics?.avg_estimate_accuracy ?? 1;
   const currentCORate = metrics?.co_capture_rate ?? 1;
+  const revenue = metrics?.total_contract_value ?? 0;
 
-  // Estimated recovery: assume we recover to target
-  const targetAccuracyRatio = 1 + targetAccuracy / 100;
-  const targetCORatio = targetCORate / 100;
+  // ── Derived outputs ──────────────────────────────────────────────────────────
+  const recoverableMargin = leakage * (recoveryRate / 100);
+  const annualizedRecoverable = recoverableMargin * (12 / 3); // 90-day → 12-month annualized
 
-  const currentOverrunCost = Math.max((currentAccuracy - targetAccuracyRatio) * revenue, 0);
-  const currentCOLeakage = metrics?.co_leakage_dollars ?? 0;
-  const recoverableCO = Math.max((targetCORatio - currentCORate) * ((metrics?.co_leakage_dollars ?? 0) + (metrics?.co_capture_rate ?? 1)), 0);
-  const totalRecoverable = currentOverrunCost + Math.min(currentCOLeakage, currentCOLeakage * (targetCORatio - currentCORate) / (1 - currentCORate + 0.001)) || 0;
-  const conservativeRecovery = leakage * 0.4;
+  // 90-day targets (interpolated toward targets)
+  const target90OverrunPct = targetOverrunPct;
+  const target90CORate = Math.min(currentCORate + (1 - currentCORate) * 0.6, 0.95); // recover 60% of gap in 90d
+  const target90Leakage = leakage * (1 - recoveryRate / 100);
+  const target90Recoverable = recoverableMargin;
 
-  const toggle = (id: string) => {
-    setSelectedScenarios((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
-  };
+  // 12-month (full potential: reach target)
+  const target12mOverrunPct = Math.max(targetOverrunPct - 2, 0);
+  const target12mCORate = Math.min(currentCORate + (1 - currentCORate) * 0.9, 0.98);
+  const target12mLeakage = leakage * 0.15; // assume 85% reduction at full implementation
+  const target12mRecoverable = annualizedRecoverable;
+
+  // RPE score from assessment context (constraint_score maps 0-4 → 0-100 via ×25)
+  const rpeScore = assessment?.constraint_score != null ? assessment.constraint_score * 25 : null;
 
   const handleComplete = async () => {
     setSaving(true);
     const model = {
-      selected_scenarios: selectedScenarios,
-      target_accuracy_pct: targetAccuracy,
-      target_co_rate_pct: targetCORate,
-      estimated_recovery: conservativeRecovery,
+      recovery_rate_pct: recoveryRate,
+      target_overrun_pct: targetOverrunPct,
+      recoverable_margin: recoverableMargin,
+      annualized_recoverable: annualizedRecoverable,
       leakage_baseline: leakage,
     };
     await updateImpactModel(model);
@@ -77,157 +139,184 @@ export default function ScopeCreepStep5() {
 
   return (
     <div>
-      {/* Recovery summary hero */}
-      <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 16, padding: "24px 28px", marginBottom: 16 }}>
+      {/* ── Hero: Recovery sliders + live output ───────────────────────────── */}
+      <div style={{ background: S.card, border: `1.5px solid ${S.border}`, borderRadius: 16, padding: "24px 28px", marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           <div>
-            <h3 style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 700, color: "#1A2018", fontFamily: "'DM Sans', sans-serif" }}>
-              Recovery Potential
+            <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700, color: S.text, fontFamily: S.sans }}>
+              Recovery Impact Model
             </h3>
-            <p style={{ margin: 0, fontSize: 13, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
-              Based on {metrics?.job_metrics.length ?? 0} jobs analyzed · Conservative 40% recovery scenario
+            <p style={{ margin: 0, fontSize: 13, color: S.muted, fontFamily: S.sans }}>
+              Adjust sliders to model realistic 90-day recovery outcomes.
             </p>
           </div>
+          {/* Live recoverable margin display */}
           <div style={{ textAlign: "right" as const }}>
-            <div style={{ fontSize: 36, fontWeight: 700, color: "#4A5C3A", fontFamily: "'DM Mono', monospace", lineHeight: 1 }}>
-              {fmt$$(conservativeRecovery)}
+            <div style={{ fontSize: 11, fontWeight: 600, color: S.faint, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 4, fontFamily: S.sans }}>
+              90-Day Recoverable
             </div>
-            <div style={{ fontSize: 12, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif', marginTop: 4" }}>
-              recoverable margin
+            <div style={{ fontSize: 36, fontWeight: 700, color: S.green, fontFamily: S.mono, lineHeight: 1 }}>
+              {fmt$$(recoverableMargin)}
+            </div>
+            <div style={{ fontSize: 11, color: S.faint, fontFamily: S.sans, marginTop: 4 }}>
+              {fmt$$(annualizedRecoverable)} annualized
             </div>
           </div>
         </div>
 
-        {/* Target sliders */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
+          {/* Slider 1: Recovery rate */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#4A5048", fontFamily: "'DM Sans', sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#4A5048", fontFamily: S.sans }}>
+                90-Day Recovery Rate
+              </label>
+              <span style={{ fontSize: 15, fontWeight: 700, color: S.green, fontFamily: S.mono }}>
+                {recoveryRate}%
+              </span>
+            </div>
+            <input
+              type="range" min={0} max={100} step={5} value={recoveryRate}
+              onChange={(e) => setRecoveryRate(parseInt(e.target.value))}
+              style={{ width: "100%", accentColor: S.green }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+              <span style={{ fontSize: 10, color: S.faint, fontFamily: S.sans }}>0% (none recovered)</span>
+              <span style={{ fontSize: 10, color: S.faint, fontFamily: S.sans }}>100% (all recovered)</span>
+            </div>
+            <div style={{ marginTop: 8, padding: "8px 12px", background: "#F7FAF5", borderRadius: 7 }}>
+              <div style={{ fontSize: 11, color: S.green, fontFamily: S.sans }}>
+                = <strong style={{ fontFamily: S.mono }}>{fmt$$(recoverableMargin)}</strong> recovered from{" "}
+                <strong style={{ fontFamily: S.mono }}>{fmt$$(leakage)}</strong> total leakage
+              </div>
+            </div>
+          </div>
+
+          {/* Slider 2: Target accuracy */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#4A5048", fontFamily: S.sans }}>
                 Target Estimation Accuracy
               </label>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#4A5C3A", fontFamily: "'DM Mono', monospace" }}>
-                ≤{targetAccuracy}% overrun
+              <span style={{ fontSize: 15, fontWeight: 700, color: S.green, fontFamily: S.mono }}>
+                ≤{targetOverrunPct}% overrun
               </span>
             </div>
             <input
-              type="range" min={0} max={15} step={1} value={targetAccuracy}
-              onChange={(e) => setTargetAccuracy(parseInt(e.target.value))}
-              style={{ width: "100%", accentColor: "#4A5C3A" }}
+              type="range" min={0} max={15} step={1} value={targetOverrunPct}
+              onChange={(e) => setTargetOverrunPct(parseInt(e.target.value))}
+              style={{ width: "100%", accentColor: S.green }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ fontSize: 10, color: "#9CA89A", fontFamily: "'DM Sans', sans-serif" }}>0% (perfect)</span>
-              <span style={{ fontSize: 10, color: "#9CA89A", fontFamily: "'DM Sans', sans-serif" }}>15% (baseline)</span>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+              <span style={{ fontSize: 10, color: S.faint, fontFamily: S.sans }}>0% (perfect)</span>
+              <span style={{ fontSize: 10, color: S.faint, fontFamily: S.sans }}>15% (baseline)</span>
             </div>
-          </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#4A5048", fontFamily: "'DM Sans', sans-serif" }}>
-                Target CO Capture Rate
-              </label>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#4A5C3A", fontFamily: "'DM Mono', monospace" }}>
-                {targetCORate}%
-              </span>
-            </div>
-            <input
-              type="range" min={65} max={100} step={5} value={targetCORate}
-              onChange={(e) => setTargetCORate(parseInt(e.target.value))}
-              style={{ width: "100%", accentColor: "#4A5C3A" }}
-            />
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-              <span style={{ fontSize: 10, color: "#9CA89A", fontFamily: "'DM Sans', sans-serif" }}>65%</span>
-              <span style={{ fontSize: 10, color: "#9CA89A", fontFamily: "'DM Sans', sans-serif" }}>100%</span>
+            <div style={{ marginTop: 8, padding: "8px 12px", background: "#F7FAF5", borderRadius: 7 }}>
+              <div style={{ fontSize: 11, color: S.muted, fontFamily: S.sans }}>
+                Current: <strong style={{ fontFamily: S.mono, color: currentAccuracy > 1.1 ? S.red : S.gold }}>
+                  +{((currentAccuracy - 1) * 100).toFixed(1)}%
+                </strong>{" "}
+                → Target: <strong style={{ fontFamily: S.mono, color: S.green }}>+{targetOverrunPct}%</strong>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Recovery scenarios */}
-      <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 16, padding: 24, marginBottom: 16 }}>
-        <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "#1A2018", fontFamily: "'DM Sans', sans-serif" }}>
-          Recovery Playbook
-        </h3>
-        <p style={{ margin: "0 0 20px", fontSize: 13, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
-          Select the interventions to include in this client's action plan.
-        </p>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {RECOVERY_SCENARIOS.map((scenario) => {
-            const isSelected = selectedScenarios.includes(scenario.id);
-            const estRecovery = leakage * scenario.lift;
-            return (
-              <div
-                key={scenario.id}
-                onClick={() => toggle(scenario.id)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
-                  border: `1.5px solid ${isSelected ? "#4A5C3A" : "#EEF0EC"}`,
-                  borderRadius: 10, cursor: "pointer",
-                  background: isSelected ? "#F7FAF5" : "#FAFAFA",
-                  transition: "all 0.15s",
-                }}
-              >
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5,
-                  border: `2px solid ${isSelected ? "#4A5C3A" : "#D0D8CC"}`,
-                  background: isSelected ? "#4A5C3A" : "transparent",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
-                  {isSelected && (
-                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                      <path d="M2 5.5l3 3L9 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? "#4A5C3A" : "#1A2018", marginBottom: 3, fontFamily: "'DM Sans', sans-serif" }}>
-                    {scenario.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>{scenario.desc}</div>
-                </div>
-                <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#4A5C3A", fontFamily: "'DM Mono', monospace" }}>
-                    ~{fmt$$(estRecovery)}
-                  </div>
-                  <div style={{ fontSize: 10, color: "#9CA89A", fontFamily: "'DM Sans', sans-serif" }}>est. recovery</div>
-                </div>
-              </div>
-            );
-          })}
+      {/* ── Scenario table ─────────────────────────────────────────────────── */}
+      <div style={{ background: S.card, border: `1.5px solid ${S.border}`, borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${S.border}` }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: S.text, fontFamily: S.sans }}>
+            Scenario Comparison
+          </h3>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: S.bg }}>
+                <th style={{ padding: "11px 14px", textAlign: "left" as const, fontSize: 11, fontWeight: 600, color: S.faint, textTransform: "uppercase" as const, letterSpacing: "0.07em", fontFamily: S.sans }}>Metric</th>
+                <th style={{ padding: "11px 14px", textAlign: "center" as const, fontSize: 11, fontWeight: 600, color: S.red, textTransform: "uppercase" as const, letterSpacing: "0.07em", fontFamily: S.sans }}>Current State</th>
+                <th style={{ padding: "11px 14px", textAlign: "center" as const, fontSize: 11, fontWeight: 600, color: S.green, textTransform: "uppercase" as const, letterSpacing: "0.07em", fontFamily: S.sans }}>90-Day Target</th>
+                <th style={{ padding: "11px 14px", textAlign: "center" as const, fontSize: 11, fontWeight: 600, color: S.gold, textTransform: "uppercase" as const, letterSpacing: "0.07em", fontFamily: S.sans }}>12-Month Potential</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ScenarioRow
+                label="Avg Overrun %"
+                current={`+${((currentAccuracy - 1) * 100).toFixed(1)}%`}
+                target90={`≤+${target90OverrunPct}%`}
+                target12m={`≤+${target12mOverrunPct}%`}
+                mono
+                color={currentAccuracy > 1.15 ? S.red : S.gold}
+              />
+              <ScenarioRow
+                label="CO Capture Rate"
+                current={fmtPct(currentCORate)}
+                target90={fmtPct(target90CORate)}
+                target12m={fmtPct(target12mCORate)}
+                mono
+                color={currentCORate < 0.75 ? S.red : S.gold}
+              />
+              <ScenarioRow
+                label="Margin Leakage ($)"
+                current={fmt$$(leakage)}
+                target90={fmt$$(target90Leakage)}
+                target12m={fmt$$(target12mLeakage)}
+                mono
+                color={leakage > 0 ? S.red : S.green}
+              />
+              <ScenarioRow
+                label="Recoverable Margin ($)"
+                current="—"
+                target90={fmt$$(target90Recoverable)}
+                target12m={fmt$$(target12mRecoverable)}
+                mono
+              />
+            </tbody>
+          </table>
+        </div>
+        {/* Footnote */}
+        <div style={{ padding: "10px 20px", background: S.bg, borderTop: `1px solid ${S.border}` }}>
+          <p style={{ margin: 0, fontSize: 11, color: S.faint, fontFamily: S.sans }}>
+            90-Day Target assumes {recoveryRate}% recovery rate at ≤{targetOverrunPct}% overrun goal. 12-Month Potential assumes full implementation with sustained discipline.
+          </p>
         </div>
       </div>
 
-      {/* Final summary */}
-      {selectedScenarios.length > 0 && (
-        <div style={{ background: "#F7FAF5", border: "1.5px solid #C8D8C0", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#4A5C3A", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 4, fontFamily: "'DM Sans', sans-serif" }}>
-                Selected Playbook
-              </div>
-              <div style={{ fontSize: 13, color: "#4A5048", fontFamily: "'DM Sans', sans-serif" }}>
-                {selectedScenarios.length} intervention{selectedScenarios.length > 1 ? "s" : ""} · Combined uplift potential
-              </div>
-            </div>
-            <div style={{ textAlign: "right" as const }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#4A5C3A", fontFamily: "'DM Mono', monospace" }}>
-                {fmt$$(RECOVERY_SCENARIOS.filter((s) => selectedScenarios.includes(s.id)).reduce((sum, s) => sum + leakage * s.lift, 0))}
-              </div>
-              <div style={{ fontSize: 10, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>combined est. recovery</div>
-            </div>
-          </div>
+      {/* ── RPE Impact panel (shown if score exists) ──────────────────────── */}
+      <RPEImpactPanel recoveryAmount={recoverableMargin} rpeScore={rpeScore} />
+
+      {/* ── Summary callout ────────────────────────────────────────────────── */}
+      <div style={{ background: "#F0F4EE", border: `1.5px solid ${S.greenBorder}`, borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: S.green, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 8, fontFamily: S.sans }}>
+          Consultant Playbook
         </div>
-      )}
+        <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            `Present the ${fmt$$(recoverableMargin)} 90-day recovery figure as the anchor number in the kickoff meeting.`,
+            `Use the Scenario Table to show the client what "good" looks like — frame targets as achievable, not aspirational.`,
+            `Link the CO Capture improvement to process, not blame — position it as a system fix, not a people fix.`,
+            rpeScore !== null
+              ? `The RPE score impact panel shows the consultant how this module's findings feed into the overall health score.`
+              : `Run an RPE Assessment to unlock the cross-module score impact model.`,
+          ].map((tip, i) => (
+            <li key={i} style={{ fontSize: 12, color: S.green, fontFamily: S.sans, lineHeight: 1.6 }}>{tip}</li>
+          ))}
+        </ul>
+      </div>
 
       <button
         onClick={handleComplete}
         disabled={saving || isLoading}
         style={{
-          width: "100%", padding: "13px", background: saving ? "#B8C8B0" : "#4A5C3A",
+          width: "100%", padding: "14px",
+          background: saving || isLoading ? "#B8C8B0" : S.green,
           color: "white", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
-          cursor: saving ? "not-allowed" : "pointer", fontFamily: "'DM Sans', sans-serif",
+          cursor: saving || isLoading ? "not-allowed" : "pointer", fontFamily: S.sans,
+          letterSpacing: "0.01em",
         }}
       >
-        {saving ? "Completing…" : "✓ Complete Scope Creep Analysis → Return to Hub"}
+        {saving ? "Completing analysis…" : "✓ Complete Scope Creep Analysis → Return to Hub"}
       </button>
     </div>
   );
