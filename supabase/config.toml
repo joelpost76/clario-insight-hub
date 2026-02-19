@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.analyze-flow-stabilization]
 verify_jwt = false
+
+[functions.analyze-scope-discipline]
+verify_jwt = false
