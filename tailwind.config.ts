@@ -19,7 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["DM Sans", "Inter", "system-ui", "sans-serif"],
+        mono: ["DM Mono", "ui-monospace", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
