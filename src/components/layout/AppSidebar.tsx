@@ -16,6 +16,7 @@ import {
   BookOpen,
   Megaphone,
   Brain,
+  AlertTriangle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -129,6 +130,13 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
             <SidebarMenu>
               {diagnosticSteps.map((item) => {
                 const isComplete = completionStatus[item.url] || false;
+
+                // Constraint gets a warning dot when its upstream data is incomplete
+                const isConstraint = item.url === "/constraint";
+                const constraintDataMissing =
+                  isConstraint &&
+                  (!completionStatus["/kickoff"] || !completionStatus["/intake"]);
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
@@ -145,14 +153,26 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
                               <Check className="h-2 w-2 text-primary-foreground" />
                             </div>
                           )}
+                          {/* Warning dot on icon for collapsed sidebar */}
+                          {!isComplete && constraintDataMissing && collapsed && (
+                            <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-sidebar-background" />
+                          )}
                         </div>
                         {!collapsed && (
                           <span className="flex-1">{item.title}</span>
                         )}
                         {!collapsed && (
-                          <span className={isComplete ? "text-primary" : "text-muted-foreground/50"}>
+                          <span className={
+                            isComplete
+                              ? "text-primary"
+                              : constraintDataMissing
+                              ? "text-amber-500"
+                              : "text-muted-foreground/50"
+                          }>
                             {isComplete ? (
                               <Check className="h-3.5 w-3.5" />
+                            ) : constraintDataMissing ? (
+                              <AlertTriangle className="h-3.5 w-3.5" />
                             ) : (
                               <Circle className="h-3 w-3" />
                             )}
