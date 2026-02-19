@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { GitPullRequest, Zap } from "lucide-react";
-import type { ScopeDisciplineResponses } from "@/types/scopeDisciplineTypes";
+import type { ScopeDisciplineResponses, ScopeDisciplineAnalysis } from "@/types/scopeDisciplineTypes";
 
 const EMPTY: ScopeDisciplineResponses = {
   estimateVarianceFrequency: "",
@@ -101,6 +101,9 @@ const SECTIONS: { title: string; fields: Field[] }[] = [
 
 export default function ScopeDiscipline() {
   const [responses, setResponses] = useState<ScopeDisciplineResponses>(EMPTY);
+  const [analysis, setAnalysis] = useState<ScopeDisciplineAnalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const set = (key: keyof ScopeDisciplineResponses) =>
     (e: React.ChangeEvent<HTMLTextAreaElement>) =>
