@@ -134,37 +134,32 @@ Propose ONE primaryConstraint (single concrete sentence using the voice rules ab
 
 Classify constraintType (short label like "Handoff", "Capacity", "Decision bottleneck", "Release mechanism", etc.).
 
-Identify 0–2 secondaryConstraints. Rules:
-- Secondary constraints must reinforce the primary — they add pressure to it or feed it.
-- They must be structurally distinct from the primary. Do not restate the same idea.
-- If no meaningful secondary pressures exist in the data, return an empty array. Do not invent weak ones.
-- Maximum 2 items. No minimum.
-- IMPORTANT — clients will read this output directly. All three fields must use calm, collaborative, provisional language.
-  - Write as if you are a trusted advisor sharing a working hypothesis with the client, not a report written about them.
-  - Avoid clinical or diagnostic framing ("This analysis suggests…", "Data indicates…").
-  - Never blame individuals. Keep the focus on how the system is set up, not who is responsible.
-  - Use provisional language: "It appears that…", "One pattern we're seeing is…", "What we're noticing is…"
-- Each secondary constraint needs:
-    label: short name visible to the client (e.g. "Decision bottleneck", "Billing coupling", "Handoff gap")
-    constraintStatement: 1–2 calm, plain sentences the client will read. Client-facing. No jargon. No blame. Provisional.
-    whyItReinforcesPrimary: 1–2 sentences explaining how this pressure connects to the primary constraint. Calm. Relational.
+Identify 0–2 secondaryConstraints that reinforce the primary constraint.
 
-CLIENT-FACING TONE EXAMPLES for secondaryConstraints:
+RULES FOR SECONDARY CONSTRAINTS:
 
-Good constraintStatement:
-  "It looks like pricing approvals are routing through one person. That creates a predictable wait before field work can begin."
-  "One pattern we're seeing is that billing timelines are tied to when jobs close — which becomes unpredictable when the schedule shifts."
+Structural rules:
+- Exactly ONE primary constraint. That remains the main focus.
+- Up to TWO secondary pressures — only include them if the data supports it clearly.
+- Each secondary must be structurally connected to the primary. It should reinforce it, not contradict it or replace it.
+- If the signals are not strong, return zero or one secondary. An empty array is acceptable and preferred over weak entries.
+- Do NOT invent secondary constraints to fill space.
 
-Bad constraintStatement (too clinical, not client-facing):
-  "Data indicates a decision bottleneck exists at the approval stage."
-  "The organization's billing cycle is structurally dependent on production stability."
+Tone rules (clients will read this output directly):
+- Do NOT write: "This company is failing to...", "Leadership lacks...", "The organization doesn't..."
+- DO write: "Right now, the current process allows...", "Work is entering production when...", "The approval path creates..."
+- Always frame secondaryConstraints as a working hypothesis we will test together, not a verdict.
+  Example framing: "This appears to be a secondary pressure that reinforces the main constraint. We'll validate this in conversation."
+- Short sentences. Concrete language. No consulting jargon. No blame.
 
-Good whyItReinforcesPrimary:
-  "When those approvals slow down, the production queue backs up further. It compounds the capacity pressure."
-  "That adds a financial dimension to the scheduling instability — late closes and compressed timelines tend to appear together."
-
-Bad whyItReinforcesPrimary:
-  "This exacerbates the primary constraint by introducing additional latency into the production pipeline."
+Field-level rules:
+- label: a short phrase a client will understand (2–4 words). Examples: "Decision bottleneck", "Billing tied to schedule", "Tool sprawl in pre-con"
+- constraintStatement: ONE clear sentence in the same calm tone as the primary constraint. Explicitly secondary in framing.
+  Good: "Change order approvals route through one person, which slows how quickly work can adjust when scope changes."
+  Bad: "There is an organizational bottleneck in the approval process that creates inefficiency."
+- whyItReinforcesPrimary: 1–2 sentences connecting this pressure to the primary constraint, in client-friendly language.
+  Good: "When approvals wait on one person, jobs already in the schedule cannot adjust in time. That reinforces the feeling of constant rescheduling in the field."
+  Bad: "This exacerbates the primary constraint by introducing additional latency into the production pipeline."
 
 List upstreamCauses (2-6 short fragments — no complete sentences needed, just the root condition).
 
