@@ -24,6 +24,14 @@ import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
+// Scope Creep module
+import ScopeCreepInit from "./pages/scope-creep/ScopeCreepInit";
+import ScopeCreepAssessment from "./pages/scope-creep/ScopeCreepAssessment";
+import ScopeCreepStep1 from "./pages/scope-creep/ScopeCreepStep1";
+import ScopeCreepStep2 from "./pages/scope-creep/ScopeCreepStep2";
+import ScopeCreepStep3 from "./pages/scope-creep/ScopeCreepStep3";
+import ScopeCreepStep4 from "./pages/scope-creep/ScopeCreepStep4";
+import ScopeCreepStep5 from "./pages/scope-creep/ScopeCreepStep5";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +145,30 @@ const App = () => (
                 </RequireWorkspace>
               }
             />
+            {/* ── Scope Creep Module ───────────────────────────────────── */}
+            <Route
+              path="/scope-creep/:clientId"
+              element={
+                <RequireWorkspace>
+                  <ScopeCreepInit />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/scope-creep/assessment/:id"
+              element={
+                <RequireWorkspace>
+                  <ScopeCreepAssessment />
+                </RequireWorkspace>
+              }
+            >
+              <Route path="step/1" element={<ScopeCreepStep1 />} />
+              <Route path="step/2" element={<ScopeCreepStep2 />} />
+              <Route path="step/3" element={<ScopeCreepStep3 />} />
+              <Route path="step/4" element={<ScopeCreepStep4 />} />
+              <Route path="step/5" element={<ScopeCreepStep5 />} />
+              <Route index element={<Navigate to="step/1" replace />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </WorkspaceProvider>

@@ -548,7 +548,15 @@ export default function Dashboard() {
   };
 
   const handleRun = (mod: ClientModule) => {
-    navigate(`/dashboard?client=${selectedClientId}&module=${mod.id}`);
+    if (!selectedClientId) return;
+    if (mod.id === "scope") {
+      navigate(`/scope-creep/${selectedClientId}`);
+    } else if (mod.id === "rpe") {
+      // RPE assessment — future route
+      navigate(`/dashboard`);
+    } else {
+      navigate(`/dashboard`);
+    }
   };
 
   const activeCount = clients.filter((c) => true).length; // placeholder
