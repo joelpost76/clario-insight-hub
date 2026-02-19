@@ -91,6 +91,104 @@ export type Database = {
           },
         ]
       }
+      assessments: {
+        Row: {
+          client_id: string
+          created_at: string
+          current_step: number
+          id: string
+          is_complete: boolean
+          module_type: string
+          score_label: string | null
+          status: string
+          total_weighted_score: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          current_step?: number
+          id?: string
+          is_complete?: boolean
+          module_type?: string
+          score_label?: string | null
+          status?: string
+          total_weighted_score?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          current_step?: number
+          id?: string
+          is_complete?: boolean
+          module_type?: string
+          score_label?: string | null
+          status?: string
+          total_weighted_score?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string
+          headcount: number | null
+          id: string
+          industry: string | null
+          name: string
+          revenue_range: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          headcount?: number | null
+          id?: string
+          industry?: string | null
+          name: string
+          revenue_range?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          headcount?: number | null
+          id?: string
+          industry?: string | null
+          name?: string
+          revenue_range?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flow_baselines: {
         Row: {
           ar_aging_30: number | null
