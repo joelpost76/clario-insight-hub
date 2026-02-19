@@ -110,21 +110,108 @@ export interface ConstraintPageState {
   };
 }
 
-// Helper stubs – implement real logic later
+import { supabase } from "@/integrations/supabase/client";
 
-export async function buildStructuredIntakeDataForClient(
-  clientId: string
-): Promise<StructuredIntakeData> {
-  // TODO: map existing Kickoff + Intake data for this client
-  // into StructuredIntakeData.
-  // For now, return a mocked object with the correct shape.
-  throw new Error("buildStructuredIntakeDataForClient not implemented yet");
+// ── Workflow label → enum helper ────────────────────────────────────────────
+
+function mapWorkflowLabelToEnum(label: string): WorkflowInScope {
+  switch (label) {
+    case "Lead intake → Estimate → Sale":
+      return "LEAD_TO_ESTIMATE_TO_SALE";
+    case "Sale → Job setup → Scheduling":
+      return "SALE_TO_JOB_SETUP_TO_SCHEDULING";
+    case "Scheduling → Delivery execution":
+      return "SCHEDULING_TO_DELIVERY";
+    case "Change orders / Variations":
+    case "Change orders":
+      return "CHANGE_ORDERS";
+    case "Billing → Collections":
+      return "BILLING_TO_COLLECTIONS";
+    case "Closeout / Handoff":
+      return "CLOSEOUT_HANDOFF";
+    case "Support / Service tickets":
+    case "Support / Service":
+      return "SUPPORT_SERVICE";
+    default:
+      return "SUPPORT_SERVICE";
+  }
 }
 
-export async function runConstraintAnalysis(
-  data: StructuredIntakeData
-): Promise<ConstraintAnalysis> {
-  // TODO: call LLM in a later step.
-  // For now, this will be replaced with a mock or real implementation.
-  throw new Error("runConstraintAnalysis not implemented yet");
+// ── Real implementation ──────────────────────────────────────────────────────
+
+export async function buildStructuredIntakeDataForClient(
+  workspaceId: string
+): Promise<StructuredIntakeData> {
+  // Load both rows in parallel; neither query throws if the row is missing
+  const [workspaceResult, intakeResult] = await Promise.all([
+    supabase.from("workspaces").select("*").eq("id", workspaceId).maybeSingle(),
+    supabase
+      .from("intake_responses")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle(),
+  ]);
+
+  const ws = workspaceResult.data;
+  const intake = intakeResult.data;
+
+  // ── Kickoff ──────────────────────────────────────────────────────────────
+  const kickoff: KickoffData = {
+    outcomes90Day: (ws?.outcomes_90_day ?? []).map((label, i) => ({
+      id: String(i),
+      label,
+    })),
+    workflowsInScope: (ws?.scope_workflows ?? []).map(mapWorkflowLabelToEnum),
+    teamsInScope: ws?.scope_teams ?? [],
+    constraintsNonNegotiables: ws?.constraints_nonnegotiables ?? [],
+    startDate: ws?.start_date ?? undefined,
+    readoutDate: ws?.readout_date ?? undefined,
+  };
+
+  // ── Symptoms ─────────────────────────────────────────────────────────────
+  const symptoms: SymptomSection = {
+    selectedClusters: (intake?.symptom_clusters as string[] | null) ?? [],
+    oneSentenceProblem: intake?.recurring_fire_sentence ?? "",
+  };
+
+  // ── Pain ratings (snake_case DB keys → camelCase interface keys) ──────────
+  const pr = (intake?.pain_ratings as Record<string, number> | null) ?? {};
+  const painRatings: PainRatingsSection = {
+    salesToOps:                pr["sales_to_ops_handoff"]        ?? 0,
+    estimatingScopeQuality:    pr["estimating_scope_quality"]    ?? 0,
+    schedulingCapacity:        pr["scheduling_capacity"]         ?? 0,
+    deliveryExecution:         pr["delivery_execution"]          ?? 0,
+    changeOrders:              pr["change_orders"]               ?? 0,
+    jobCostingVisibility:      pr["job_costing_visibility"]      ?? 0,
+    billingCollections:        pr["billing_collections"]         ?? 0,
+    roleClarityAccountability: pr["role_clarity_accountability"] ?? 0,
+    meetingsCadence:           pr["cadence_meetings"]            ?? 0,
+    customerCommunication:     pr["customer_comms"]              ?? 0,
+  };
+
+  // ── TOC ───────────────────────────────────────────────────────────────────
+  const toc: TocSection = {
+    whereWorkWaitsLongest:  intake?.toc_wait_points       ?? "",
+    stepWithMostReplanning: intake?.toc_replanning_points ?? "",
+    downstreamFiresIfFixed: intake?.toc_one_fix_effect    ?? "",
+  };
+
+  // ── Decisions, Tools, Metrics ─────────────────────────────────────────────
+  const rawTools = (intake?.tools_list as unknown[] | null) ?? [];
+  const tools: ToolEntry[] = rawTools.map((entry) => {
+    if (typeof entry === "string") return { name: entry };
+    const t = entry as Record<string, unknown>;
+    return {
+      name: String(t["name"] ?? ""),
+      purpose: t["purpose"] ? String(t["purpose"]) : undefined,
+    };
+  });
+
+  const decisionsToolsMetrics: DecisionsToolsMetricsSection = {
+    decisionBottlenecks: intake?.decisions_bottleneck   ?? "",
+    currentMetrics:      intake?.metrics_tracked_today  ?? "",
+    tools,
+  };
+
+  return { kickoff, symptoms, painRatings, toc, decisionsToolsMetrics };
 }
