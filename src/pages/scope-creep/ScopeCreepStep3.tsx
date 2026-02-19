@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useScopeCreep } from "@/contexts/ScopeCreepContext";
 import { fmt$$, fmtPct } from "@/lib/calculations";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── Step 3: Analysis Results ─────────────────────────────────────────────────
 
@@ -21,7 +23,6 @@ function MetricCard({ label, value, sub, color, large }: { label: string; value:
 
 // ─── Accuracy gauge ring ─────────────────────────────────────────────────────
 function AccuracyRing({ accuracy }: { accuracy: number }) {
-  // accuracy = 1.0 is perfect, >1 is overrun
   const overrunPct = Math.max(0, (accuracy - 1) * 100);
   const clampedPct = Math.min(overrunPct, 100);
   const color = accuracy <= 1.05 ? BRAND_GREEN : accuracy <= 1.2 ? BRAND_GOLD : ALERT_RED;
@@ -65,22 +66,18 @@ function COCaptureBar({ rate }: { rate: number }) {
         <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.6s ease" }}/>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-        <span style={{ fontSize: 10, color: "#C0392B", fontFamily: "'DM Sans', sans-serif" }}>0%</span>
-        <span style={{ fontSize: 10, color: "#B8A94A", fontFamily: "'DM Sans', sans-serif" }}>65%</span>
-        <span style={{ fontSize: 10, color: "#4A5C3A", fontFamily: "'DM Sans', sans-serif" }}>90%+</span>
+        <span style={{ fontSize: 10, color: ALERT_RED, fontFamily: "'DM Sans', sans-serif" }}>0%</span>
+        <span style={{ fontSize: 10, color: BRAND_GOLD, fontFamily: "'DM Sans', sans-serif" }}>65%</span>
+        <span style={{ fontSize: 10, color: BRAND_GREEN, fontFamily: "'DM Sans', sans-serif" }}>90%+</span>
       </div>
       <div style={{ marginTop: 10, fontSize: 12, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
-        {rate >= 0.9
-          ? "Excellent — minimal CO leakage"
-          : rate >= 0.65
-          ? "Moderate — review CO follow-up process"
-          : "High leakage — systematic CO capture issue"}
+        {rate >= 0.9 ? "Excellent — minimal CO leakage" : rate >= 0.65 ? "Moderate — review CO follow-up process" : "High leakage — systematic CO capture issue"}
       </div>
     </div>
   );
 }
 
-// ─── Pattern breakdown bar chart (horizontal) ─────────────────────────────────
+// ─── Pattern breakdown ────────────────────────────────────────────────────────
 function PatternBreakdown({ data, title }: { data: Record<string, { avg_accuracy: number; count: number }>; title: string }) {
   const entries = Object.entries(data).sort((a, b) => b[1].avg_accuracy - a[1].avg_accuracy);
   if (entries.length === 0) return null;
@@ -92,7 +89,7 @@ function PatternBreakdown({ data, title }: { data: Record<string, { avg_accuracy
       {entries.map(([key, { avg_accuracy, count }]) => {
         const pct = ((avg_accuracy - 1) * 100);
         const color = avg_accuracy <= 1.05 ? BRAND_GREEN : avg_accuracy <= 1.2 ? BRAND_GOLD : ALERT_RED;
-        const barWidth = ((avg_accuracy - 1) / (maxAcc - 1)) * 100;
+        const barWidth = maxAcc > 1 ? ((avg_accuracy - 1) / (maxAcc - 1)) * 100 : 4;
         return (
           <div key={key} style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -130,10 +127,10 @@ function ConstraintPanel({ score, accuracy, captureRate }: { score: number; accu
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: level.color, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
-            Constraint Score (Cross-Validation)
+            Constraint Score
           </div>
           <div style={{ fontSize: 13, color: "#4A5048", fontFamily: "'DM Sans', sans-serif" }}>
-            Correlated against RPE Step 3 bottleneck data
+            Design & Estimating process quality
           </div>
         </div>
         <div style={{ textAlign: "right" as const }}>
@@ -142,14 +139,12 @@ function ConstraintPanel({ score, accuracy, captureRate }: { score: number; accu
         </div>
       </div>
 
-      {/* Score ladder */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
         {[0, 1, 2, 3, 4].map((s) => (
           <div key={s} style={{ flex: 1, height: 6, borderRadius: 3, background: s <= score ? level.color : "#E8EAE6", transition: "background 0.3s" }}/>
         ))}
       </div>
 
-      {/* Cross-validation table */}
       <div style={{ background: "rgba(255,255,255,0.6)", borderRadius: 8, padding: "12px 14px" }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: "#6B7A67", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 10, fontFamily: "'DM Sans', sans-serif" }}>Metric Breakdown</div>
         {[
@@ -178,9 +173,111 @@ function ConstraintPanel({ score, accuracy, captureRate }: { score: number; accu
   );
 }
 
+// ─── Cross-Validation Badge ────────────────────────────────────────────────────
+function CrossValidationPanel({
+  constraintScore,
+  clientId,
+}: {
+  constraintScore: number;
+  clientId: string;
+}) {
+  const { data: rpeAssessment, isLoading } = useQuery({
+    queryKey: ["rpe-crossval", clientId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("assessments")
+        .select("total_weighted_score, score_label")
+        .eq("client_id", clientId)
+        .eq("is_complete", true)
+        .eq("module_type", "rpe")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!clientId,
+  });
+
+  if (isLoading || !rpeAssessment) return null;
+
+  // RPE score is stored as 0-100; convert constraint_score (0-4) to 0-4 for comparison
+  // The assessments table doesn't have score_design_estimating — compare constraint_score (0-4 scale)
+  // against total_weighted_score / 25 to normalize to 0-4
+  const rpeScore4 = rpeAssessment.total_weighted_score != null
+    ? Math.round(rpeAssessment.total_weighted_score / 25)
+    : null;
+
+  if (rpeScore4 === null) return null;
+
+  const discrepancy = Math.abs(constraintScore - rpeScore4) > 1;
+
+  return (
+    <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 14, padding: "20px 22px", marginBottom: 16 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA89A", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 14, fontFamily: "'DM Sans', sans-serif" }}>
+        Cross-Validation — RPE vs Scope Creep
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 16, alignItems: "center", marginBottom: 14 }}>
+        <div style={{ background: "#F7FAF5", border: "1.5px solid #C8D8C0", borderRadius: 10, padding: "14px 16px", textAlign: "center" as const }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#6B7A67", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
+            RPE Assessment
+          </div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: BRAND_GREEN, fontFamily: "'DM Mono', monospace", lineHeight: 1 }}>
+            {rpeScore4}
+          </div>
+          <div style={{ fontSize: 11, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif", marginTop: 4 }}>/ 4 overall</div>
+          {rpeAssessment.score_label && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: BRAND_GREEN, marginTop: 4, fontFamily: "'DM Sans', sans-serif" }}>
+              {rpeAssessment.score_label}
+            </div>
+          )}
+        </div>
+
+        <div style={{ fontSize: 20, color: "#D0D8CC", fontWeight: 300 }}>↔</div>
+
+        <div style={{
+          background: discrepancy ? "#FEF2F2" : "#F7FAF5",
+          border: `1.5px solid ${discrepancy ? "#FECACA" : "#C8D8C0"}`,
+          borderRadius: 10, padding: "14px 16px", textAlign: "center" as const,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: "#6B7A67", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
+            Scope Creep Score
+          </div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: discrepancy ? ALERT_RED : BRAND_GREEN, fontFamily: "'DM Mono', monospace", lineHeight: 1 }}>
+            {constraintScore}
+          </div>
+          <div style={{ fontSize: 11, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif", marginTop: 4 }}>/ 4 overall</div>
+        </div>
+      </div>
+
+      {discrepancy ? (
+        <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "12px 16px", display: "flex", gap: 10 }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+            <path d="M8 1L1 14h14L8 1z" stroke={ALERT_RED} strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M8 6v4M8 12v.5" stroke={ALERT_RED} strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: ALERT_RED, marginBottom: 2, fontFamily: "'DM Sans', sans-serif" }}>
+              Score discrepancy detected — {Math.abs(constraintScore - rpeScore4)} point gap
+            </div>
+            <div style={{ fontSize: 11, color: "#7F1D1D", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
+              Data suggests the Design & Estimating process is performing differently than the RPE assessment indicated. Review this category with your client and consider re-running the RPE assessment with updated field data.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: "#F0F4EE", border: "1px solid #C8D8C0", borderRadius: 8, padding: "10px 14px" }}>
+          <div style={{ fontSize: 12, color: BRAND_GREEN, fontFamily: "'DM Sans', sans-serif" }}>
+            ✓ Scores are consistent — RPE and Scope Creep data tell the same story.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ScopeCreepStep3() {
-  const { id } = useParams<{ id: string }>();
-  const { metrics, runAnalysis, completeStep, isLoading } = useScopeCreep();
+  const { metrics, assessment, runAnalysis, completeStep, isLoading } = useScopeCreep();
 
   useEffect(() => {
     if (!metrics) runAnalysis();
@@ -221,7 +318,7 @@ export default function ScopeCreepStep3() {
         <MetricCard
           label="CO Capture Rate"
           value={fmtPct(co_capture_rate)}
-          sub={`$${fmt$$(co_leakage_dollars)} leakage`}
+          sub={`${fmt$$(co_leakage_dollars)} leakage`}
           color={co_capture_rate >= 0.9 ? BRAND_GREEN : co_capture_rate >= 0.65 ? BRAND_GOLD : ALERT_RED}
         />
         <MetricCard
@@ -234,8 +331,6 @@ export default function ScopeCreepStep3() {
 
       {/* Two-column detail section */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-
-        {/* Accuracy ring + CO bar */}
         <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 14, padding: "22px 24px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#1A2018", marginBottom: 20, fontFamily: "'DM Sans', sans-serif" }}>Estimation Accuracy</div>
           <AccuracyRing accuracy={avg_estimate_accuracy} />
@@ -244,13 +339,20 @@ export default function ScopeCreepStep3() {
           </div>
         </div>
 
-        {/* Constraint cross-validation */}
         <ConstraintPanel
           score={constraint_score}
           accuracy={avg_estimate_accuracy}
           captureRate={co_capture_rate}
         />
       </div>
+
+      {/* Cross-validation panel (only if RPE assessment exists) */}
+      {assessment?.client_id && (
+        <CrossValidationPanel
+          constraintScore={constraint_score}
+          clientId={assessment.client_id}
+        />
+      )}
 
       {/* Pattern breakdown by project type and estimator */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
