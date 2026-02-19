@@ -24,36 +24,94 @@ export function useClientModules(clientId: string | null) {
   return useQuery({
     queryKey: ["client-modules", clientId],
     queryFn: async (): Promise<ClientModule[]> => {
-      if (!clientId) return buildModules([]);
+      if (!clientId) return buildModules([], null);
 
-      const { data: assessments, error } = await supabase
-        .from("assessments")
-        .select("id, module_type, status, is_complete, total_weighted_score, score_label, updated_at")
-        .eq("client_id", clientId)
-        .order("updated_at", { ascending: false });
+      // Fetch RPE assessments + scope creep assessments in parallel
+      const [assessmentsRes, scopeRes] = await Promise.all([
+        supabase
+          .from("assessments")
+          .select("id, module_type, status, is_complete, total_weighted_score, score_label, updated_at")
+          .eq("client_id", clientId)
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("scope_creep_assessments")
+          .select("id, current_step, is_complete, constraint_score, updated_at")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-      if (error) {
-        console.error("useClientModules error:", error);
-        return buildModules([]);
+      if (assessmentsRes.error) {
+        console.error("useClientModules assessments error:", assessmentsRes.error);
       }
 
-      return buildModules(assessments ?? []);
+      return buildModules(assessmentsRes.data ?? [], scopeRes.data ?? null);
     },
     enabled: !!clientId,
   });
 }
 
-function buildModules(assessments: any[]): ClientModule[] {
-  // Build a map: module_type → most recent assessment
+function buildModules(
+  assessments: any[],
+  scopeAssessment: {
+    id: string;
+    current_step: number;
+    is_complete: boolean;
+    constraint_score: number | null;
+    updated_at: string;
+  } | null
+): ClientModule[] {
+  // Build a map: module_type → most recent RPE-style assessment
   const byType: Record<string, any> = {};
   for (const a of assessments) {
     if (!byType[a.module_type]) byType[a.module_type] = a;
   }
 
   const rpeComplete = byType["rpe"]?.is_complete === true;
-  const completeCount = Object.values(byType).filter((a) => a?.is_complete).length;
+  const completeCount =
+    Object.values(byType).filter((a) => a?.is_complete).length +
+    (scopeAssessment?.is_complete ? 1 : 0);
 
   return MODULE_DEFS.map(({ id, name }) => {
+    // ── Scope Creep — use scope_creep_assessments ────────────────────────
+    if (id === "scope") {
+      if (!scopeAssessment) {
+        return {
+          id,
+          name,
+          status: rpeComplete ? "available" : "locked",
+          score: null,
+          scoreLabel: null,
+          date: null,
+        };
+      }
+      if (scopeAssessment.is_complete) {
+        return {
+          id,
+          name,
+          status: "complete",
+          // constraint_score 0-4 → 0-100
+          score: scopeAssessment.constraint_score != null
+            ? Math.round(scopeAssessment.constraint_score * 25)
+            : null,
+          scoreLabel: scopeAssessment.constraint_score != null
+            ? constraintScoreLabel(scopeAssessment.constraint_score)
+            : null,
+          date: scopeAssessment.updated_at,
+        };
+      }
+      return {
+        id,
+        name,
+        status: "in_progress",
+        score: null,
+        scoreLabel: `Step ${scopeAssessment.current_step} of 5`,
+        date: scopeAssessment.updated_at,
+      };
+    }
+
+    // ── All other modules — use assessments table ────────────────────────
     const a = byType[id];
 
     let status: ModuleStatus;
@@ -62,10 +120,9 @@ function buildModules(assessments: any[]): ClientModule[] {
     } else if (a && !a.is_complete) {
       status = "in_progress";
     } else {
-      // No assessment yet — determine availability
       if (id === "rpe") {
         status = "available";
-      } else if (id === "scope" || id === "pl") {
+      } else if (id === "pl") {
         status = rpeComplete ? "available" : "locked";
       } else {
         // cashflow: locked until 2+ modules complete
@@ -82,4 +139,12 @@ function buildModules(assessments: any[]): ClientModule[] {
       date: a?.updated_at ?? null,
     };
   });
+}
+
+function constraintScoreLabel(score: number): string {
+  if (score >= 4) return "Excellent";
+  if (score >= 3) return "Healthy";
+  if (score >= 2) return "Moderate";
+  if (score >= 1) return "High Risk";
+  return "Critical";
 }
