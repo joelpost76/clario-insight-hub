@@ -9,3 +9,11 @@ export interface FlowStabilizationResponses {
   scheduleControlMeeting: string;
   decisionReopenFrequency: string;
 }
+
+export interface FlowStabilizationAnalysis {
+  flowRiskSummary: string;
+  readinessGap: string;
+  stabilizationMoves: string[];  // 3–5 concrete actions
+  firstDesignMove: string;       // single highest leverage action
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+}
