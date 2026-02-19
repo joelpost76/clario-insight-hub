@@ -135,19 +135,36 @@ Propose ONE primaryConstraint (single concrete sentence using the voice rules ab
 Classify constraintType (short label like "Handoff", "Capacity", "Decision bottleneck", "Release mechanism", etc.).
 
 Identify 0–2 secondaryConstraints. Rules:
-- Secondary constraints must reinforce the primary constraint — they add pressure to it or feed it.
+- Secondary constraints must reinforce the primary — they add pressure to it or feed it.
 - They must be structurally distinct from the primary. Do not restate the same idea.
 - If no meaningful secondary pressures exist in the data, return an empty array. Do not invent weak ones.
 - Maximum 2 items. No minimum.
+- IMPORTANT — clients will read this output directly. All three fields must use calm, collaborative, provisional language.
+  - Write as if you are a trusted advisor sharing a working hypothesis with the client, not a report written about them.
+  - Avoid clinical or diagnostic framing ("This analysis suggests…", "Data indicates…").
+  - Never blame individuals. Keep the focus on how the system is set up, not who is responsible.
+  - Use provisional language: "It appears that…", "One pattern we're seeing is…", "What we're noticing is…"
 - Each secondary constraint needs:
-    label: short name (e.g. "Decision Bottleneck", "Billing Pressure")
-    constraintStatement: 1-3 short, calm sentences in the same voice as the primaryConstraint.
-    whyItReinforcesPrimary: 1-2 sentences explaining how it feeds or amplifies the primary constraint.
+    label: short name visible to the client (e.g. "Decision bottleneck", "Billing coupling", "Handoff gap")
+    constraintStatement: 1–2 calm, plain sentences the client will read. Client-facing. No jargon. No blame. Provisional.
+    whyItReinforcesPrimary: 1–2 sentences explaining how this pressure connects to the primary constraint. Calm. Relational.
 
-Example pattern:
-  Primary: "Work is being released into production without a clear capacity boundary."
-  Secondary 1: { label: "Decision Bottleneck", constraintStatement: "Pricing approvals route through one person. That single point slows field mobilization.", whyItReinforcesPrimary: "When approvals are delayed, crews sit idle or start without authorization. That extends the production queue." }
-  Secondary 2: { label: "Billing Tied to Unstable Production", constraintStatement: "Invoices go out when jobs close, not when milestones hit. Unstable production makes close dates unpredictable.", whyItReinforcesPrimary: "Billing pressure forces early closes or scope compression — both of which add rework and delay to an already overloaded schedule." }
+CLIENT-FACING TONE EXAMPLES for secondaryConstraints:
+
+Good constraintStatement:
+  "It looks like pricing approvals are routing through one person. That creates a predictable wait before field work can begin."
+  "One pattern we're seeing is that billing timelines are tied to when jobs close — which becomes unpredictable when the schedule shifts."
+
+Bad constraintStatement (too clinical, not client-facing):
+  "Data indicates a decision bottleneck exists at the approval stage."
+  "The organization's billing cycle is structurally dependent on production stability."
+
+Good whyItReinforcesPrimary:
+  "When those approvals slow down, the production queue backs up further. It compounds the capacity pressure."
+  "That adds a financial dimension to the scheduling instability — late closes and compressed timelines tend to appear together."
+
+Bad whyItReinforcesPrimary:
+  "This exacerbates the primary constraint by introducing additional latency into the production pipeline."
 
 List upstreamCauses (2-6 short fragments — no complete sentences needed, just the root condition).
 
