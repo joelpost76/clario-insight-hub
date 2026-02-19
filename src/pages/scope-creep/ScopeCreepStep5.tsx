@@ -127,7 +127,7 @@ function RPEImpactPanel({
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function ScopeCreepStep5() {
   const navigate = useNavigate();
-  const { assessment, metrics, updateImpactModel, completeStep, isLoading } = useScopeCreep();
+  const { assessment, metrics, updateImpactModel, completeStep, runAnalysis, isLoading } = useScopeCreep();
 
   const [recoveryRate, setRecoveryRate] = useState(40);
   const [targetOverrunPct, setTargetOverrunPct] = useState(5);
@@ -152,17 +152,24 @@ export default function ScopeCreepStep5() {
 
   const handleComplete = async () => {
     setSaving(true);
-    const model = {
-      recovery_rate_pct: recoveryRate,
-      target_overrun_pct: targetOverrunPct,
-      recoverable_margin: recoverableMargin,
-      annualized_recoverable: annualizedRecoverable,
-      leakage_baseline: leakage,
-    };
-    await updateImpactModel(model);
-    await completeStep(5);
-    setSaving(false);
-    navigate("/dashboard");
+    try {
+      // Always re-persist metrics before completing — ensures constraint_score is saved
+      // even if Step 3 was skipped during a resume session
+      await runAnalysis();
+
+      const model = {
+        recovery_rate_pct: recoveryRate,
+        target_overrun_pct: targetOverrunPct,
+        recoverable_margin: recoverableMargin,
+        annualized_recoverable: annualizedRecoverable,
+        leakage_baseline: leakage,
+      };
+      await updateImpactModel(model);
+      await completeStep(5);
+      navigate("/dashboard");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
