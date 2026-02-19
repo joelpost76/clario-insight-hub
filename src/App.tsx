@@ -21,6 +21,7 @@ import SIPOC from "./pages/SIPOC";
 import Workflow from "./pages/Workflow";
 import Baseline from "./pages/Baseline";
 import FlowStabilization from "./pages/FlowStabilization";
+import ScopeDiscipline from "./pages/ScopeDiscipline";
 import Admin from "./pages/Admin";
 import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
@@ -161,6 +162,14 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <FlowStabilization />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/scope-discipline"
+              element={
+                <RequireWorkspace>
+                  <ScopeDiscipline />
                 </RequireWorkspace>
               }
             />
