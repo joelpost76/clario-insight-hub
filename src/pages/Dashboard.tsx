@@ -6,6 +6,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientModules, ClientModule, ModuleId } from "@/hooks/useClientModules";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const WELCOME_SEEN_PREFIX = "welcome_seen_";
 
@@ -477,16 +484,16 @@ function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: stri
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#4A5048", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
             Industry
           </label>
-          <select
-            style={{ ...inputStyle, appearance: "none" as const }}
-            value={form.industry}
-            onChange={(e) => setForm({ ...form, industry: e.target.value })}
-          >
-            <option value="">Select industry...</option>
-            {INDUSTRIES.map((ind) => (
-              <option key={ind} value={ind}>{ind}</option>
-            ))}
-          </select>
+          <Select value={form.industry} onValueChange={(val) => setForm({ ...form, industry: val })}>
+            <SelectTrigger style={{ ...inputStyle, height: "auto" }}>
+              <SelectValue placeholder="Select industry..." />
+            </SelectTrigger>
+            <SelectContent>
+              {INDUSTRIES.map((ind) => (
+                <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Annual Revenue */}
