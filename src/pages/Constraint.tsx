@@ -275,27 +275,34 @@ export default function Constraint() {
               </Card>
             </section>
 
-            {/* ── Section: Secondary Constraints ── */}
+            {/* ── Section: Secondary Pressures ── */}
             {analysis.secondaryConstraints && analysis.secondaryConstraints.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Supporting Pressures
-                </h2>
-                <div className="space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Secondary pressures to watch
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    These are additional forces that appear to reinforce the primary constraint. We'll test these together.
+                  </p>
+                </div>
+                <div className="space-y-2 pl-3 border-l-2 border-border/50">
                   {analysis.secondaryConstraints.map((sc, i) => (
-                    <Card key={i} className="border-border/60 bg-muted/30">
-                      <CardContent className="pt-4 space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-normal">
-                            {sc.label}
-                          </Badge>
-                        </div>
-                        <p className="text-sm">{sc.constraintStatement}</p>
-                        <p className="text-xs text-muted-foreground italic">
-                          {sc.whyItReinforcesPrimary}
-                        </p>
-                      </CardContent>
-                    </Card>
+                    <div
+                      key={i}
+                      className="rounded-lg border border-border/40 bg-muted/20 px-4 py-3 space-y-1.5"
+                    >
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-normal border-border/50 text-muted-foreground"
+                      >
+                        {sc.label}
+                      </Badge>
+                      <p className="text-sm leading-snug">{sc.constraintStatement}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {sc.whyItReinforcesPrimary}
+                      </p>
+                    </div>
                   ))}
                 </div>
               </section>
