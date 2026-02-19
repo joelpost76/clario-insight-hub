@@ -24,6 +24,7 @@ import type {
   ConstraintSource,
 } from "@/types/clarioConstraintTypes";
 import { buildStructuredIntakeDataForClient } from "@/types/clarioConstraintTypes";
+import { runConstraintAnalysis } from "@/lib/constraintAnalysis";
 
 // ── Mock fallback intake data ────────────────────────────────────────────────
 
@@ -81,84 +82,7 @@ const MOCK_INTAKE_DATA: StructuredIntakeData = {
   },
 };
 
-// ── Mock analysis helper (inline – does NOT call real runConstraintAnalysis) ──
 
-async function runConstraintAnalysisMock(
-  _data: StructuredIntakeData
-): Promise<ConstraintAnalysis> {
-  // Simulate network latency
-  await new Promise((r) => setTimeout(r, 1600));
-  return {
-    primaryConstraint:
-      "The PM-to-Finance closeout handoff is the binding constraint — informal, inconsistency-driven, and blocking billing for 2–3 weeks after job completion.",
-    constraintType: "Handoff / Process Gap",
-    upstreamCauses: [
-      "No standardized definition of job 'done' across PMs",
-      "Scheduling rework consumes PM bandwidth needed for closeout",
-      "Change orders tracked in Excel outside Buildertrend, creating data gaps",
-    ],
-    downstreamEffects: [
-      "Billing cycle time of 2–3 weeks post-completion → cash flow strain",
-      "AR aging increases as invoices go out late",
-      "Change order revenue leaks because informal CO tracking gets lost in closeout rush",
-      "Finance team spends time chasing PMs instead of processing invoices",
-    ],
-    supportingSignals: [
-      {
-        source: "PAIN_RATINGS",
-        fieldKey: "changeOrders",
-        description: "Change Orders rated 9/10 — highest single signal in the dataset",
-      },
-      {
-        source: "PAIN_RATINGS",
-        fieldKey: "billingCollections",
-        description: "Billing & Collections rated 9/10 — confirms billing delay is acute",
-      },
-      {
-        source: "PAIN_RATINGS",
-        fieldKey: "jobCostingVisibility",
-        description: "Job costing visibility rated 8/10 — PMs and finance lack shared data view",
-      },
-      {
-        source: "TOC",
-        fieldKey: "whereWorkWaitsLongest",
-        description: "PM-to-finance closeout handoff explicitly named as primary wait point",
-      },
-      {
-        source: "TOC",
-        fieldKey: "downstreamFiresIfFixed",
-        description:
-          "Client identified billing speed and AR aging as top downstream beneficiaries of fixing closeout",
-      },
-      {
-        source: "SYMPTOMS",
-        fieldKey: "selectedClusters",
-        description: "Change order capture and billing delays are both in top symptom clusters",
-      },
-      {
-        source: "DECISIONS",
-        fieldKey: "decisionBottlenecks",
-        description: "No standard closeout checklist — PM signals completion informally (texts/calls)",
-      },
-      {
-        source: "TOOLS",
-        fieldKey: "tools",
-        description:
-          "CO tracking in Excel outside Buildertrend creates data loss risk at the handoff moment",
-      },
-    ],
-    suggestedDiagnosticModules: [
-      "Workflow Map – PM Closeout to Finance Trigger",
-      "SIPOC – Billing & Collections Process",
-      "Scope Creep / Change Order Analyzer",
-      "Interviews – PM × Finance Handoff Friction",
-    ],
-    aiConfidence: "HIGH",
-    inferredDataQuality: "MEDIUM",
-    notesForConsultant:
-      "Data quality is MEDIUM — pain ratings are strong signals but TOC answers are brief. Recommend a 30-min PM interview to confirm closeout sequence before locking the constraint. The Excel-based CO tracking is a quick win: consolidating into Buildertrend would reduce data loss independent of the handoff fix.",
-  };
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -237,15 +161,15 @@ export default function Constraint() {
     loadData();
   }, [workspaceId]);
 
-  // ── Run analysis (mock — does NOT call real runConstraintAnalysis) ──────────
+  // ── Run analysis (real AI call) ───────────────────────────────────────────
   const handleRunAnalysis = async () => {
     if (!structuredData) return;
     setAnalysisLoading(true);
     try {
-      const result = await runConstraintAnalysisMock(structuredData);
+      const result = await runConstraintAnalysis(structuredData);
       setPageState((prev) => ({ ...prev, aiAnalysis: result }));
       setEditConstraint(result.primaryConstraint);
-      setEditNotes(prev => prev || "");
+      setEditNotes((prev) => prev || "");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       toast({ title: "Analysis failed", description: msg, variant: "destructive" });
