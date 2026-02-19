@@ -13,6 +13,7 @@ import ThankYou from "./pages/ThankYou";
 import Dashboard from "./pages/Dashboard";
 import Kickoff from "./pages/Kickoff";
 import Intake from "./pages/Intake";
+import Constraint from "./pages/Constraint";
 import Artifacts from "./pages/Artifacts";
 import Interviews from "./pages/Interviews";
 import Survey from "./pages/Survey";
@@ -95,6 +96,14 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <Intake />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/constraint"
+              element={
+                <RequireWorkspace>
+                  <Constraint />
                 </RequireWorkspace>
               }
             />
