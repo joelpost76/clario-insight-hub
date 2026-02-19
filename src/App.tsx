@@ -24,6 +24,9 @@ import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
+// RPE module
+import RPEInit from "./pages/rpe/RPEInit";
+import RPEAssessment from "./pages/rpe/RPEAssessment";
 // Scope Creep module
 import ScopeCreepInit from "./pages/scope-creep/ScopeCreepInit";
 import ScopeCreepAssessment from "./pages/scope-creep/ScopeCreepAssessment";
@@ -145,6 +148,26 @@ const App = () => (
                 </RequireWorkspace>
               }
             />
+            {/* ── RPE Module ──────────────────────────────────────────── */}
+            <Route
+              path="/rpe/:clientId"
+              element={
+                <RequireWorkspace>
+                  <RPEInit />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/rpe/assessment/:id"
+              element={
+                <RequireWorkspace>
+                  <RPEAssessment />
+                </RequireWorkspace>
+              }
+            >
+              <Route index element={<RPEAssessment />} />
+              <Route path="step/:step" element={<RPEAssessment />} />
+            </Route>
             {/* ── Scope Creep Module ───────────────────────────────────── */}
             <Route
               path="/scope-creep/:clientId"
