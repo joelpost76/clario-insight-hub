@@ -1,0 +1,14 @@
+Job Name,Project Type,Estimator Name,Contract Value,Estimated Cost,Actual Cost,CO Value Issued,CO Value Signed,Start Date,End Date
+Harlow Kitchen Reno,Kitchen,Sarah M,85000,42000,47500,6000,4200,2024-01-15,2024-03-20
+Westside Bath Addition,Bath,Tom K,62000,31000,34200,3200,3200,2024-02-01,2024-04-10
+Oak Park Whole Home,Whole Home,Sarah M,220000,110000,128000,15000,9000,2024-01-05,2024-06-30
+Elmwood Addition,Addition,David R,145000,72000,79800,8500,7200,2024-03-01,2024-07-15
+Riverdale Kitchen,Kitchen,Tom K,54000,27000,27800,1200,1200,2024-02-15,2024-04-05
+Sunrise Bath Remodel,Bath,David R,38000,19000,22100,2800,1400,2024-03-15,2024-05-20
+Highland Whole Home,Whole Home,Sarah M,310000,155000,182000,22000,14500,2024-01-20,2024-08-15
+Pinewood Kitchen,Kitchen,Tom K,71000,35500,36200,2100,2100,2024-04-01,2024-06-01
+Lakeview Addition,Addition,David R,198000,99000,108900,12000,8600,2024-02-20,2024-07-30
+Downtown Bath,Bath,Sarah M,0,18500,21000,3500,2800,2024-04-15,2024-06-10
+Duplicate Job,Kitchen,Tom K,95000,47500,52000,4500,3000,2024-05-01,2024-07-01
+Duplicate Job,Kitchen,Tom K,95000,47500,54000,4500,2500,2024-05-15,2024-07-15
+Cedar Heights Reno,Whole Home,David R,175000,87500,96200,11000,9800,2024-03-10,2024-08-01
