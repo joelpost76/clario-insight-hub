@@ -1,70 +1,135 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useParams, useNavigate, Outlet, Navigate } from "react-router-dom";
+import { RPEProvider, useRPE } from "@/contexts/RPEContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 
-// Placeholder for the RPE Assessment wizard.
-// Steps will be built out as Module 1 of the Clario diagnostic.
-export default function RPEAssessment() {
+// ─── Step indicator ───────────────────────────────────────────────────────────
+const STEPS = ["Company Info", "RPE Baseline", "Diagnostic Score", "Constraint ID", "Capacity & WIP", "Impact Model"];
+
+function StepBar({ currentStep }: { currentStep: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 32 }}>
+      {STEPS.map((label, i) => {
+        const step = i + 1;
+        const done = step < currentStep;
+        const active = step === currentStep;
+        return (
+          <div key={step} style={{ display: "flex", alignItems: "center", flex: step < STEPS.length ? 1 : "none" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: "50%",
+                background: done ? "#4A5C3A" : active ? "#4A5C3A" : "#F0F2EE",
+                border: done || active ? "2px solid #4A5C3A" : "2px solid #E0E4DC",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: done || active ? "white" : "#9CA89A",
+                fontSize: 10, fontWeight: 700, fontFamily: "'DM Sans', sans-serif",
+                flexShrink: 0,
+              }}>
+                {done ? (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                ) : step}
+              </div>
+              <span style={{
+                fontSize: 9, fontWeight: active ? 600 : 400,
+                color: active ? "#1A2018" : "#9CA89A",
+                fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap",
+                textAlign: "center" as const,
+              }}>{label}</span>
+            </div>
+            {step < STEPS.length && (
+              <div style={{ flex: 1, height: 2, background: done ? "#4A5C3A" : "#EEF0EC", margin: "0 4px", marginBottom: 20, borderRadius: 2 }}/>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Inner wrapper that loads assessment ─────────────────────────────────────
+function RPEWizardInner() {
   const { id } = useParams<{ id: string }>();
+  const { assessment, loadAssessment, isLoading, error } = useRPE();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (id) loadAssessment(id);
+  }, [id]);
+
+  if (isLoading && !assessment) {
+    return (
+      <AppLayout>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ width: 32, height: 32, border: "3px solid #4A5C3A", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }}/>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", color: "#6B7A67", fontSize: 14 }}>Loading assessment…</p>
+          </div>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </AppLayout>
+    );
+  }
+
+  if (error && !assessment) {
+    return (
+      <AppLayout>
+        <div style={{ padding: 40, textAlign: "center" }}>
+          <p style={{ color: "#C0392B", fontFamily: "'DM Sans', sans-serif" }}>{error}</p>
+          <button onClick={() => navigate("/dashboard")} style={{ marginTop: 16, padding: "10px 20px", background: "#4A5C3A", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+            Back to Hub
+          </button>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const step = assessment?.current_step ?? 1;
 
   return (
     <AppLayout>
-      <div style={{ fontFamily: "'DM Sans', sans-serif", maxWidth: 720, margin: "0 auto", padding: "48px 0" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 28 }}>
           <button
             onClick={() => navigate("/dashboard")}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6B7A67", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 24 }}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#6B7A67", fontSize: 13, fontFamily: "'DM Sans', sans-serif", marginBottom: 16, padding: 0 }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             Back to Client Hub
           </button>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1A2018", letterSpacing: "-0.5px" }}>
-            RPE Assessment
-          </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#6B7A67" }}>
-            Revenue-Per-Employee diagnostic — Module 1 of 4
-          </p>
-        </div>
-
-        {/* Status card */}
-        <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 16, padding: 40, textAlign: "center" }}>
-          <div style={{ width: 64, height: 64, background: "#F0F4EE", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <circle cx="14" cy="14" r="11" stroke="#4A5C3A" strokeWidth="2"/>
-              <path d="M9 14.5l3.5 3.5 6.5-7" stroke="#4A5C3A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h2 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 700, color: "#1A2018" }}>
-            RPE Assessment Created
-          </h2>
-          <p style={{ margin: "0 0 8px", fontSize: 14, color: "#6B7A67", maxWidth: 420, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
-            Assessment ID: <code style={{ background: "#F5F5F5", padding: "2px 6px", borderRadius: 4, fontSize: 12, fontFamily: "'DM Mono', monospace" }}>{id?.slice(0, 8)}…</code>
-          </p>
-          <p style={{ margin: "0 0 28px", fontSize: 14, color: "#6B7A67", maxWidth: 420, marginLeft: "auto", marginRight: "auto", lineHeight: 1.6 }}>
-            The RPE Assessment wizard is the next module to be built. The record has been created in the database — you'll see this client card update to "In Progress" on the hub.
-          </p>
-
-          <div style={{ display: "inline-flex", gap: 8, background: "#F7FAF5", border: "1px solid #DCE8D4", borderRadius: 10, padding: "14px 20px", textAlign: "left", marginBottom: 28 }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
-              <circle cx="8" cy="8" r="6.5" stroke="#4A5C3A" strokeWidth="1.3"/>
-              <path d="M8 5v4M8 11v.5" stroke="#4A5C3A" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-            <span style={{ fontSize: 13, color: "#4A5C3A", fontWeight: 500 }}>
-              Coming up: 6-step wizard covering headcount, revenue, capacity utilization, and profit margin benchmarking.
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button
-              onClick={() => navigate("/dashboard")}
-              style={{ padding: "10px 24px", background: "#4A5C3A", color: "white", border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer" }}
-            >
-              Return to Hub
-            </button>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#1A2018", letterSpacing: "-0.5px", fontFamily: "'DM Sans', sans-serif" }}>
+                RPE Assessment
+              </h1>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
+                Module 1 · Revenue-Per-Employee Diagnostic
+              </p>
+            </div>
+            <div style={{ background: "#F0F4EE", border: "1px solid #C8D8C0", borderRadius: 8, padding: "6px 14px" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#4A5C3A", fontFamily: "'DM Sans', sans-serif" }}>Step {step} of 6</span>
+            </div>
           </div>
         </div>
+
+        <StepBar currentStep={step} />
+
+        <Outlet />
       </div>
     </AppLayout>
+  );
+}
+
+// ─── Exported wrapper with context ───────────────────────────────────────────
+export default function RPEAssessment() {
+  return (
+    <RPEProvider>
+      <RPEWizardInner />
+    </RPEProvider>
   );
 }

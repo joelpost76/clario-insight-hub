@@ -27,6 +27,12 @@ import NotFound from "./pages/NotFound";
 // RPE module
 import RPEInit from "./pages/rpe/RPEInit";
 import RPEAssessment from "./pages/rpe/RPEAssessment";
+import RPEStep1 from "./pages/rpe/RPEStep1";
+import RPEStep2 from "./pages/rpe/RPEStep2";
+import RPEStep3 from "./pages/rpe/RPEStep3";
+import RPEStep4 from "./pages/rpe/RPEStep4";
+import RPEStep5 from "./pages/rpe/RPEStep5";
+import RPEStep6 from "./pages/rpe/RPEStep6";
 // Scope Creep module
 import ScopeCreepInit from "./pages/scope-creep/ScopeCreepInit";
 import ScopeCreepAssessment from "./pages/scope-creep/ScopeCreepAssessment";
@@ -165,8 +171,13 @@ const App = () => (
                 </RequireWorkspace>
               }
             >
-              <Route index element={<RPEAssessment />} />
-              <Route path="step/:step" element={<RPEAssessment />} />
+              <Route path="step/1" element={<RPEStep1 />} />
+              <Route path="step/2" element={<RPEStep2 />} />
+              <Route path="step/3" element={<RPEStep3 />} />
+              <Route path="step/4" element={<RPEStep4 />} />
+              <Route path="step/5" element={<RPEStep5 />} />
+              <Route path="step/6" element={<RPEStep6 />} />
+              <Route index element={<Navigate to="step/1" replace />} />
             </Route>
             {/* ── Scope Creep Module ───────────────────────────────────── */}
             <Route
