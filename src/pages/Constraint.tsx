@@ -17,6 +17,7 @@ import {
   Sparkles,
   CheckCircle2,
   Save,
+  ClipboardList,
 } from "lucide-react";
 import type {
   StructuredIntakeData,
@@ -189,6 +190,41 @@ export default function Constraint() {
   const isAccepted = !!pageState.consultantEdits?.acceptedAt;
   const groupedSignals = analysis ? groupSignals(analysis.supportingSignals) : {};
 
+  // ── Data completeness check ───────────────────────────────────────────────
+  const missingItems: { label: string; route: string; detail: string }[] = [];
+  if (structuredData) {
+    if (!structuredData.kickoff.outcomes90Day.length) {
+      missingItems.push({
+        label: "Kickoff outcomes",
+        route: "/kickoff",
+        detail: "No 90-day outcomes have been defined.",
+      });
+    }
+    if (!structuredData.kickoff.workflowsInScope.length) {
+      missingItems.push({
+        label: "Scope workflows",
+        route: "/kickoff",
+        detail: "No workflows have been added to scope.",
+      });
+    }
+    if (!structuredData.symptoms.selectedClusters.length) {
+      missingItems.push({
+        label: "Symptom clusters",
+        route: "/intake",
+        detail: "No symptom clusters have been selected in Intake.",
+      });
+    }
+    const painValues = Object.values(structuredData.painRatings);
+    const nonZero = painValues.filter((v) => v > 0);
+    if (nonZero.length < 3) {
+      missingItems.push({
+        label: "Pain ratings",
+        route: "/intake",
+        detail: "Fewer than 3 pain ratings have been filled in.",
+      });
+    }
+  }
+
   // ── Loading / error states ─────────────────────────────────────────────────
   if (initLoading) {
     return (
@@ -241,23 +277,58 @@ export default function Constraint() {
 
         {/* ── Pre-analysis info card ── */}
         {!analysis && !analysisLoading && (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <Brain className="h-7 w-7 text-primary" />
-              </div>
-              <div className="max-w-sm">
-                <p className="font-medium">Run the constraint analysis</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  See a proposed working constraint based on the Kickoff + Intake data collected so far.
-                </p>
-              </div>
-              <Button onClick={handleRunAnalysis} className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Run AI Constraint Analysis
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            {/* Data completeness warning */}
+            {missingItems.length > 0 && (
+              <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30">
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start gap-3">
+                    <ClipboardList className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                        Some data is missing — the analysis will still run, but confidence may be lower.
+                      </p>
+                      <ul className="space-y-1.5">
+                        {missingItems.map((item) => (
+                          <li key={item.label} className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                            <span>
+                              <span className="font-medium">{item.label}:</span>{" "}
+                              {item.detail}{" "}
+                              <button
+                                onClick={() => navigate(item.route)}
+                                className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
+                              >
+                                Go to {item.label.split(" ")[0]}
+                              </button>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <Brain className="h-7 w-7 text-primary" />
+                </div>
+                <div className="max-w-sm">
+                  <p className="font-medium">Run the constraint analysis</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    See a proposed working constraint based on the Kickoff + Intake data collected so far.
+                  </p>
+                </div>
+                <Button onClick={handleRunAnalysis} className="gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Run AI Constraint Analysis
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* ── Analysis loading ── */}
@@ -487,26 +558,36 @@ export default function Constraint() {
             )}
 
             {/* ── Bottom actions ── */}
-            <div className="flex items-center justify-between border-t border-border pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRunAnalysis}
-                disabled={analysisLoading}
-                className="gap-1.5"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Re-run Analysis
-              </Button>
+            <div className="space-y-3 border-t border-border pt-4">
+              {missingItems.length > 0 && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 dark:border-amber-800 dark:bg-amber-950/30">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <p className="text-xs text-amber-800 dark:text-amber-300">
+                    Missing data: {missingItems.map((i) => i.label).join(", ")}. Re-running will still work but confidence may be lower.
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRunAnalysis}
+                  disabled={analysisLoading}
+                  className="gap-1.5"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Re-run Analysis
+                </Button>
 
-              <Button onClick={handleSetConstraint} disabled={saving} className="gap-2">
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                {saving ? "Saving…" : "Save Working Constraint"}
-              </Button>
+                <Button onClick={handleSetConstraint} disabled={saving} className="gap-2">
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {saving ? "Saving…" : "Save Working Constraint"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
