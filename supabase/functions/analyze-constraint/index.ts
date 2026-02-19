@@ -122,99 +122,8 @@ serve(async (req) => {
       );
     }
 
-    const userPrompt = `Here is the structured intake data for this client. Analyse it and return a ConstraintAnalysis.
-
+    const userMessage = `STRUCTURED_INTAKE_DATA_JSON:
 ${JSON.stringify(data, null, 2)}`;
-
-    const tools = [
-      {
-        type: "function",
-        function: {
-          name: "return_constraint_analysis",
-          description: "Return the structured constraint analysis result.",
-          parameters: {
-            type: "object",
-            properties: {
-              primaryConstraint: {
-                type: "string",
-                description: "One clear sentence naming the binding constraint.",
-              },
-              constraintType: {
-                type: "string",
-                description:
-                  "Short category label, e.g. 'Handoff / Process Gap', 'Capacity Bottleneck', 'Decision Bottleneck', 'Rework Loop', 'Information Gap'.",
-              },
-              upstreamCauses: {
-                type: "array",
-                items: { type: "string" },
-                description: "System-level reasons this constraint exists (3–5 items).",
-              },
-              downstreamEffects: {
-                type: "array",
-                items: { type: "string" },
-                description: "Pain, cost, or delays that reduce if this constraint improves (3–5 items).",
-              },
-              supportingSignals: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    source: {
-                      type: "string",
-                      enum: ["SYMPTOMS", "PAIN_RATINGS", "TOC", "DECISIONS", "TOOLS", "METRICS", "KICKOFF"],
-                    },
-                    fieldKey: {
-                      type: "string",
-                      description: "The specific field name from the intake data.",
-                    },
-                    description: {
-                      type: "string",
-                      description: "Plain-English explanation of why this signal points to the constraint.",
-                    },
-                  },
-                  required: ["source", "fieldKey", "description"],
-                  additionalProperties: false,
-                },
-                description: "5–8 signals from the intake data that support this constraint.",
-              },
-              suggestedDiagnosticModules: {
-                type: "array",
-                items: { type: "string" },
-                description:
-                  "3–5 specific diagnostic activities to validate or deepen understanding of this constraint (e.g. 'Workflow Map – PM Closeout to Finance Trigger').",
-              },
-              aiConfidence: {
-                type: "string",
-                enum: ["LOW", "MEDIUM", "HIGH"],
-                description: "How confident the AI is in this constraint given the data.",
-              },
-              inferredDataQuality: {
-                type: "string",
-                enum: ["LOW", "MEDIUM", "HIGH"],
-                description: "Quality of the intake data provided.",
-              },
-              notesForConsultant: {
-                type: "string",
-                description:
-                  "Brief coaching notes: what to verify in interviews, adjacent quick wins, or data gaps to fill.",
-              },
-            },
-            required: [
-              "primaryConstraint",
-              "constraintType",
-              "upstreamCauses",
-              "downstreamEffects",
-              "supportingSignals",
-              "suggestedDiagnosticModules",
-              "aiConfidence",
-              "inferredDataQuality",
-              "notesForConsultant",
-            ],
-            additionalProperties: false,
-          },
-        },
-      },
-    ];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -226,10 +135,8 @@ ${JSON.stringify(data, null, 2)}`;
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
+          { role: "user", content: userMessage },
         ],
-        tools,
-        tool_choice: { type: "function", function: { name: "return_constraint_analysis" } },
       }),
     });
 
@@ -255,18 +162,58 @@ ${JSON.stringify(data, null, 2)}`;
     }
 
     const result = await response.json();
+    const rawContent: string = result.choices?.[0]?.message?.content ?? "";
 
-    // Extract structured output from tool call
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      console.error("No tool call in response:", JSON.stringify(result));
+    if (!rawContent) {
+      console.error("Empty AI response:", JSON.stringify(result));
       return new Response(
-        JSON.stringify({ error: "AI did not return a structured analysis." }),
+        JSON.stringify({ error: "AI returned an empty response. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const analysis = JSON.parse(toolCall.function.arguments);
+    // Strip markdown code fences if the model wraps the JSON
+    const stripped = rawContent
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```\s*$/, "")
+      .trim();
+
+    let analysis;
+    try {
+      analysis = JSON.parse(stripped);
+    } catch (parseErr) {
+      console.error("JSON parse failed. Raw content:", rawContent);
+      return new Response(
+        JSON.stringify({
+          error:
+            "The AI response could not be parsed as JSON. Check edge function logs for details.",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Basic shape validation
+    const required = [
+      "primaryConstraint",
+      "constraintType",
+      "upstreamCauses",
+      "downstreamEffects",
+      "supportingSignals",
+      "suggestedDiagnosticModules",
+      "aiConfidence",
+      "inferredDataQuality",
+      "notesForConsultant",
+    ];
+    const missing = required.filter((k) => !(k in analysis));
+    if (missing.length > 0) {
+      console.error("Missing fields in AI response:", missing, JSON.stringify(analysis));
+      return new Response(
+        JSON.stringify({
+          error: `AI response missing required fields: ${missing.join(", ")}`,
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(JSON.stringify({ analysis }), {
       status: 200,
