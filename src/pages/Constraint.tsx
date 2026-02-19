@@ -26,61 +26,8 @@ import type {
 import { buildStructuredIntakeDataForClient } from "@/types/clarioConstraintTypes";
 import { runConstraintAnalysis } from "@/lib/constraintAnalysis";
 
-// ── Mock fallback intake data ────────────────────────────────────────────────
 
-const MOCK_INTAKE_DATA: StructuredIntakeData = {
-  kickoff: {
-    outcomes90Day: [
-      { id: "1", label: "Billing cycle time under 5 days" },
-      { id: "2", label: "Change order capture rate above 85%" },
-    ],
-    workflowsInScope: ["CHANGE_ORDERS", "BILLING_TO_COLLECTIONS", "SALE_TO_JOB_SETUP_TO_SCHEDULING"],
-    teamsInScope: ["Sales", "PMs", "Finance"],
-    constraintsNonNegotiables: ["Cannot disrupt active jobs", "No new software until Q3"],
-    startDate: "2025-01-15",
-    readoutDate: "2025-04-15",
-  },
-  symptoms: {
-    selectedClusters: [
-      "Change orders not captured in time",
-      "Billing delays after job completion",
-      "Scheduling conflicts and last-minute changes",
-    ],
-    oneSentenceProblem:
-      "Jobs complete but billing is delayed 2–3 weeks, and change orders aren't being captured consistently, which is eroding margin.",
-  },
-  painRatings: {
-    salesToOps: 7,
-    estimatingScopeQuality: 6,
-    schedulingCapacity: 8,
-    deliveryExecution: 5,
-    changeOrders: 9,
-    jobCostingVisibility: 8,
-    billingCollections: 9,
-    roleClarityAccountability: 6,
-    meetingsCadence: 4,
-    customerCommunication: 5,
-  },
-  toc: {
-    whereWorkWaitsLongest:
-      "Work queues up at the PM-to-finance handoff after job closeout — PMs don't signal completion, so billing doesn't start.",
-    stepWithMostReplanning:
-      "Scheduling gets rewritten 2–3x per week due to material delays and crew availability, pulling PMs away from closeout tasks.",
-    downstreamFiresIfFixed:
-      "If closeout handoff was clean, billing would start within 1 day, AR aging would drop, and PMs would have fewer follow-up calls.",
-  },
-  decisionsToolsMetrics: {
-    decisionBottlenecks:
-      "PMs decide when a job is 'done' but have no standard checklist — finance waits on informal signals (texts, calls).",
-    tools: [
-      { name: "Buildertrend", purpose: "Project management and scheduling" },
-      { name: "QuickBooks", purpose: "Accounting and invoicing" },
-      { name: "Excel", purpose: "Change order tracking" },
-    ],
-    currentMetrics:
-      "Tracking revenue and job count. No consistent tracking of billing cycle time, CO capture rate, or WIP age.",
-  },
-};
+
 
 
 
@@ -148,12 +95,11 @@ export default function Constraint() {
       setInitLoading(true);
       setInitError(null);
       try {
-        // workspaceId is the closest proxy for clientId in this app's architecture
         const data = await buildStructuredIntakeDataForClient(workspaceId ?? "");
         setStructuredData(data);
-      } catch {
-        // "not implemented" — use mock data so the page renders during development
-        setStructuredData(MOCK_INTAKE_DATA);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Failed to load intake data";
+        setInitError(msg);
       } finally {
         setInitLoading(false);
       }
