@@ -275,6 +275,32 @@ export default function Constraint() {
               </Card>
             </section>
 
+            {/* ── Section: Secondary Constraints ── */}
+            {analysis.secondaryConstraints && analysis.secondaryConstraints.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Supporting Pressures
+                </h2>
+                <div className="space-y-3">
+                  {analysis.secondaryConstraints.map((sc, i) => (
+                    <Card key={i} className="border-border/60 bg-muted/30">
+                      <CardContent className="pt-4 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {sc.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm">{sc.constraintStatement}</p>
+                        <p className="text-xs text-muted-foreground italic">
+                          {sc.whyItReinforcesPrimary}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* ── Section: Evidence ── */}
             <section className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">

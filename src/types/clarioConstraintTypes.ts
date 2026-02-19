@@ -89,9 +89,16 @@ export interface SupportingSignal {
   description: string;   // plain-English interpretation
 }
 
+export interface SecondaryConstraint {
+  label: string;                    // e.g. "Decision Bottleneck"
+  constraintStatement: string;      // short, calm, steady phrasing
+  whyItReinforcesPrimary: string;   // 1–2 sentence explanation
+}
+
 export interface ConstraintAnalysis {
   primaryConstraint: string;          // one clear sentence
   constraintType: string;             // e.g. "Handoff", "Capacity", "Decision bottleneck"
+  secondaryConstraints?: SecondaryConstraint[]; // max 2 items
   upstreamCauses: string[];           // system-level causes
   downstreamEffects: string[];        // what pain shrinks if fixed
   supportingSignals: SupportingSignal[];

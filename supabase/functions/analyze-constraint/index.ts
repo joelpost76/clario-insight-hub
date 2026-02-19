@@ -134,6 +134,21 @@ Propose ONE primaryConstraint (single concrete sentence using the voice rules ab
 
 Classify constraintType (short label like "Handoff", "Capacity", "Decision bottleneck", "Release mechanism", etc.).
 
+Identify 0–2 secondaryConstraints. Rules:
+- Secondary constraints must reinforce the primary constraint — they add pressure to it or feed it.
+- They must be structurally distinct from the primary. Do not restate the same idea.
+- If no meaningful secondary pressures exist in the data, return an empty array. Do not invent weak ones.
+- Maximum 2 items. No minimum.
+- Each secondary constraint needs:
+    label: short name (e.g. "Decision Bottleneck", "Billing Pressure")
+    constraintStatement: 1-3 short, calm sentences in the same voice as the primaryConstraint.
+    whyItReinforcesPrimary: 1-2 sentences explaining how it feeds or amplifies the primary constraint.
+
+Example pattern:
+  Primary: "Work is being released into production without a clear capacity boundary."
+  Secondary 1: { label: "Decision Bottleneck", constraintStatement: "Pricing approvals route through one person. That single point slows field mobilization.", whyItReinforcesPrimary: "When approvals are delayed, crews sit idle or start without authorization. That extends the production queue." }
+  Secondary 2: { label: "Billing Tied to Unstable Production", constraintStatement: "Invoices go out when jobs close, not when milestones hit. Unstable production makes close dates unpredictable.", whyItReinforcesPrimary: "Billing pressure forces early closes or scope compression — both of which add rework and delay to an already overloaded schedule." }
+
 List upstreamCauses (2-6 short fragments — no complete sentences needed, just the root condition).
 
 List downstreamEffects (3-8 short fragments — what breaks downstream because of this constraint).
@@ -165,7 +180,10 @@ Compose notesForConsultant:
 
 OUTPUT:
 
-Return a single JSON object matching the ConstraintAnalysis interface exactly.
+Return a single JSON object with these exact field names:
+  primaryConstraint, constraintType, secondaryConstraints, upstreamCauses, downstreamEffects,
+  supportingSignals, suggestedDiagnosticModules, aiConfidence, inferredDataQuality, notesForConsultant.
+secondaryConstraints must be an array (empty [] if none). Each item: { label, constraintStatement, whyItReinforcesPrimary }.
 Make sure the JSON is valid and matches these exact field names.`;
 
 serve(async (req) => {
