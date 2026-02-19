@@ -505,6 +505,172 @@ export type Database = {
           },
         ]
       }
+      scope_creep_assessments: {
+        Row: {
+          avg_estimate_accuracy: number | null
+          client_id: string
+          co_capture_rate: number | null
+          constraint_score: number | null
+          created_at: string
+          current_step: number
+          date_range_end: string | null
+          date_range_start: string | null
+          id: string
+          impact_model: Json | null
+          is_complete: boolean
+          root_cause_notes: string | null
+          total_jobs: number | null
+          total_margin_leakage: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          avg_estimate_accuracy?: number | null
+          client_id: string
+          co_capture_rate?: number | null
+          constraint_score?: number | null
+          created_at?: string
+          current_step?: number
+          date_range_end?: string | null
+          date_range_start?: string | null
+          id?: string
+          impact_model?: Json | null
+          is_complete?: boolean
+          root_cause_notes?: string | null
+          total_jobs?: number | null
+          total_margin_leakage?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          avg_estimate_accuracy?: number | null
+          client_id?: string
+          co_capture_rate?: number | null
+          constraint_score?: number | null
+          created_at?: string
+          current_step?: number
+          date_range_end?: string | null
+          date_range_start?: string | null
+          id?: string
+          impact_model?: Json | null
+          is_complete?: boolean
+          root_cause_notes?: string | null
+          total_jobs?: number | null
+          total_margin_leakage?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_creep_assessments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scope_creep_assessments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scope_creep_column_map: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          id: string
+          mapping: Json | null
+          raw_headers: Json | null
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          id?: string
+          mapping?: Json | null
+          raw_headers?: Json | null
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          id?: string
+          mapping?: Json | null
+          raw_headers?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_creep_column_map_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "scope_creep_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scope_creep_jobs: {
+        Row: {
+          actual_cost: number | null
+          assessment_id: string
+          co_value_issued: number | null
+          co_value_signed: number | null
+          contract_value: number | null
+          cos_issued: number | null
+          cos_signed: number | null
+          estimated_cost: number | null
+          estimator_name: string | null
+          id: string
+          is_excluded: boolean | null
+          job_end_date: string | null
+          job_name: string | null
+          job_start_date: string | null
+          project_type: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          assessment_id: string
+          co_value_issued?: number | null
+          co_value_signed?: number | null
+          contract_value?: number | null
+          cos_issued?: number | null
+          cos_signed?: number | null
+          estimated_cost?: number | null
+          estimator_name?: string | null
+          id?: string
+          is_excluded?: boolean | null
+          job_end_date?: string | null
+          job_name?: string | null
+          job_start_date?: string | null
+          project_type?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          assessment_id?: string
+          co_value_issued?: number | null
+          co_value_signed?: number | null
+          contract_value?: number | null
+          cos_issued?: number | null
+          cos_signed?: number | null
+          estimated_cost?: number | null
+          estimator_name?: string | null
+          id?: string
+          is_excluded?: boolean | null
+          job_end_date?: string | null
+          job_name?: string | null
+          job_start_date?: string | null
+          project_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_creep_jobs_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "scope_creep_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sipocs: {
         Row: {
           created_at: string
