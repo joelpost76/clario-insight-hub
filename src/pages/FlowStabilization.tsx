@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,29 +22,23 @@ const REQUIRED_FIELDS: { key: keyof FlowStabilizationResponses; label: string }[
   { key: "scheduleControlMeeting",   label: "Schedule control meeting" },
 ];
 
-// ─── Mock AI function (replace with real edge function later) ───────────────
+// ─── Real AI edge function call ─────────────────────────────────────────────
 async function runFlowStabilizationAnalysis(
-  _responses: FlowStabilizationResponses
+  responses: FlowStabilizationResponses
 ): Promise<FlowStabilizationAnalysis> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1800));
+  const { data, error } = await supabase.functions.invoke("analyze-flow-stabilization", {
+    body: { responses },
+  });
 
-  return {
-    flowRiskSummary:
-      "Work is being released without a formal gate, causing downstream congestion and rework loops. Capacity is invisible, which forces PMs into reactive firefighting rather than planned execution.",
-    readinessGap:
-      "There is no documented release checklist or authority structure. Release decisions are being made ad hoc, often bypassing crew availability checks entirely.",
-    stabilizationMoves: [
-      "Define a 5-point release gate checklist (materials, permits, crew, scope lock, stakeholder sign-off) and make it mandatory before any job enters production.",
-      "Establish a single named PM as the release authority for each job — no dual authorization ambiguity.",
-      "Create a visible capacity board (physical or digital) showing each PM's active job count updated weekly.",
-      "Institute a standing Monday operations meeting with a fixed agenda: releases due this week, capacity check, and open change orders.",
-      "Set a 48-hour SLA between scope-change approval and field execution — flag any breach in the weekly ops meeting.",
-    ],
-    firstDesignMove:
-      "Implement the release gate checklist immediately. This single structural change will surface all downstream problems (capacity gaps, missing permits, undefined scope) before they become production fires.",
-    confidence: "HIGH",
-  };
+  if (error) {
+    throw new Error(error.message || "Analysis failed");
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return data.analysis as FlowStabilizationAnalysis;
 }
 
 // ─── Confidence badge colours ───────────────────────────────────────────────
