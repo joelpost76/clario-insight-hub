@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Layers, Loader2, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
+import { Layers, Loader2, AlertCircle, CheckCircle2, ChevronRight, RefreshCw } from "lucide-react";
 import type {
   FlowStabilizationResponses,
   FlowStabilizationAnalysis,
@@ -66,6 +66,7 @@ const defaultResponses: FlowStabilizationResponses = {
 
 export default function FlowStabilization() {
   const { workspaceId } = useWorkspace();
+  const formTopRef = useRef<HTMLDivElement>(null);
 
   const [responses, setResponses] = useState<FlowStabilizationResponses>(defaultResponses);
   const [analysis, setAnalysis] = useState<FlowStabilizationAnalysis | null>(null);
@@ -152,7 +153,7 @@ export default function FlowStabilization() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-3xl space-y-8 p-6">
+      <div ref={formTopRef} className="mx-auto max-w-3xl space-y-8 p-6">
         {/* Page header */}
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -432,6 +433,25 @@ export default function FlowStabilization() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Re-run Analysis */}
+            <div className="flex items-center justify-between rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4">
+              <div>
+                <p className="text-sm font-medium">Want to adjust your answers?</p>
+                <p className="text-xs text-muted-foreground">Edit the form above and re-run the analysis.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  formTopRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="gap-2"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Re-run Analysis
+              </Button>
+            </div>
           </div>
         )}
       </div>
