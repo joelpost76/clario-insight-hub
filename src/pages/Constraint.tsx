@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -16,6 +16,7 @@ import {
   Info,
   Sparkles,
   CheckCircle2,
+  Save,
 } from "lucide-react";
 import type {
   StructuredIntakeData,
@@ -25,6 +26,7 @@ import type {
 } from "@/types/clarioConstraintTypes";
 import { buildStructuredIntakeDataForClient } from "@/types/clarioConstraintTypes";
 import { runConstraintAnalysis } from "@/lib/constraintAnalysis";
+import { supabase } from "@/integrations/supabase/client";
 
 
 
@@ -77,6 +79,7 @@ export default function Constraint() {
 
   const [initLoading, setInitLoading] = useState(true);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
 
   const [structuredData, setStructuredData] = useState<StructuredIntakeData | null>(null);
@@ -85,18 +88,51 @@ export default function Constraint() {
     consultantEdits: undefined,
   });
 
-  // Editable fields (seeded from AI analysis when it loads)
+  // Editable fields (seeded from AI analysis or persisted state)
   const [editConstraint, setEditConstraint] = useState("");
   const [editNotes, setEditNotes] = useState("");
 
-  // ── On mount: load structured intake data ──────────────────────────────────
+  // ── Persist constraint_state to DB ────────────────────────────────────────
+  const persistToDb = useCallback(async (state: ConstraintPageState) => {
+    if (!workspaceId) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("workspaces")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ constraint_state: state as any })
+      .eq("id", workspaceId);
+    setSaving(false);
+    if (error) {
+      console.error("Failed to save constraint state:", error);
+    }
+  }, [workspaceId]);
+
+  // ── On mount: load intake data + any persisted constraint_state ─────────
   useEffect(() => {
     async function loadData() {
       setInitLoading(true);
       setInitError(null);
       try {
-        const data = await buildStructuredIntakeDataForClient(workspaceId ?? "");
-        setStructuredData(data);
+        const [intakeData, workspaceResult] = await Promise.all([
+          buildStructuredIntakeDataForClient(workspaceId ?? ""),
+          supabase
+            .from("workspaces")
+            .select("constraint_state")
+            .eq("id", workspaceId ?? "")
+            .maybeSingle(),
+        ]);
+
+        setStructuredData(intakeData);
+
+        // Restore persisted constraint state if it exists
+        const saved = workspaceResult.data?.constraint_state as ConstraintPageState | null;
+        if (saved?.aiAnalysis) {
+          setPageState(saved);
+          setEditConstraint(
+            saved.consultantEdits?.finalConstraint ?? saved.aiAnalysis.primaryConstraint
+          );
+          setEditNotes(saved.consultantEdits?.finalNotes ?? "");
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Failed to load intake data";
         setInitError(msg);
@@ -113,9 +149,11 @@ export default function Constraint() {
     setAnalysisLoading(true);
     try {
       const result = await runConstraintAnalysis(structuredData);
-      setPageState((prev) => ({ ...prev, aiAnalysis: result }));
+      const newState: ConstraintPageState = { ...pageState, aiAnalysis: result };
+      setPageState(newState);
       setEditConstraint(result.primaryConstraint);
-      setEditNotes((prev) => prev || "");
+      // Persist the raw AI result immediately so it survives refreshes
+      await persistToDb(newState);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       toast({ title: "Analysis failed", description: msg, variant: "destructive" });
@@ -125,7 +163,7 @@ export default function Constraint() {
   };
 
   // ── Set as working constraint ──────────────────────────────────────────────
-  const handleSetConstraint = () => {
+  const handleSetConstraint = async () => {
     if (!editConstraint.trim()) {
       toast({
         title: "Constraint required",
@@ -134,15 +172,17 @@ export default function Constraint() {
       });
       return;
     }
-    setPageState((prev) => ({
-      ...prev,
+    const newState: ConstraintPageState = {
+      ...pageState,
       consultantEdits: {
         finalConstraint: editConstraint.trim(),
         finalNotes: editNotes.trim() || undefined,
         acceptedAt: new Date().toISOString(),
       },
-    }));
-    toast({ title: "Working constraint set", description: "Locked for this engagement." });
+    };
+    setPageState(newState);
+    await persistToDb(newState);
+    toast({ title: "Working constraint saved", description: "Persisted for this engagement." });
   };
 
   const analysis = pageState.aiAnalysis;
@@ -459,9 +499,13 @@ export default function Constraint() {
                 Re-run Analysis
               </Button>
 
-              <Button onClick={handleSetConstraint} className="gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                Set as Working Constraint
+              <Button onClick={handleSetConstraint} disabled={saving} className="gap-2">
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? "Saving…" : "Save Working Constraint"}
               </Button>
             </div>
           </div>
