@@ -555,8 +555,7 @@ export default function Dashboard() {
     if (mod.id === "scope") {
       navigate(`/scope-creep/${selectedClientId}`);
     } else if (mod.id === "rpe") {
-      // RPE assessment — future route
-      navigate(`/dashboard`);
+      navigate(`/rpe/${selectedClientId}`);
     } else {
       navigate(`/dashboard`);
     }
