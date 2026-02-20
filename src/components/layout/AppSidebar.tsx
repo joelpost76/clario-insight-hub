@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Layers,
   GitPullRequest,
+  TrendingUp,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -187,6 +188,30 @@ export function AppSidebar({ completionStatus = {}, dayNumber = 1 }: AppSidebarP
                   </SidebarMenuItem>
                 );
               })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Tools Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+            Tools
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/rpe"
+                    end
+                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent font-medium text-primary"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    {!collapsed && <span>RPE Health Check</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
