@@ -457,6 +457,30 @@ export type Database = {
         }
         Relationships: []
       }
+      rpe_health_check_state: {
+        Row: {
+          created_at: string
+          id: string
+          inputs: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inputs?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inputs?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       sales_leads: {
         Row: {
           accepted_at: string | null
