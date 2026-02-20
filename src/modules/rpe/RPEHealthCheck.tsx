@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  ReferenceLine,
 } from "recharts";
 import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -491,60 +492,109 @@ export default function RPEHealthCheck() {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <BarChart
-                        data={[
-                          { name: "Field FTE",     value: inputs.fieldFTE },
-                          { name: "Non-Field FTE", value: inputs.nonFieldFTE },
-                        ]}
-                        margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
-                        barCategoryGap="40%"
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          vertical={false}
-                          stroke="hsl(var(--border))"
-                        />
-                        <XAxis
-                          dataKey="name"
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <YAxis
-                          allowDecimals={false}
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                          width={28}
-                        />
-                        <Tooltip
-                          cursor={{ fill: "hsl(var(--muted))" }}
-                          contentStyle={{
-                            background: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                            fontSize: "12px",
-                            color: "hsl(var(--foreground))",
-                          }}
-                          formatter={(v: number) => [v, "FTE"]}
-                        />
-                        <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={80}>
-                          <Cell fill="hsl(var(--primary))" />
-                          <Cell fill="hsl(var(--muted-foreground))" opacity={0.5} />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <div className="flex items-center gap-5 mt-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-primary" />
-                        Field FTE
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-muted-foreground opacity-50" />
-                        Non-Field FTE
-                      </span>
-                    </div>
+                    {(() => {
+                      // 3:1 benchmark — for every 3 field FTE, 1 overhead is the industry target.
+                      // We draw a horizontal reference line at fieldFTE / 3 to show the ideal non-field headcount.
+                      const benchmarkY = inputs.fieldFTE > 0
+                        ? Math.round((inputs.fieldFTE / 3) * 10) / 10
+                        : null;
+                      const nonFieldAbove = benchmarkY !== null && inputs.nonFieldFTE > benchmarkY;
+
+                      return (
+                        <>
+                          <ResponsiveContainer width="100%" height={200}>
+                            <BarChart
+                              data={[
+                                { name: "Field FTE",     value: inputs.fieldFTE },
+                                { name: "Non-Field FTE", value: inputs.nonFieldFTE },
+                              ]}
+                              margin={{ top: 16, right: 16, left: 0, bottom: 0 }}
+                              barCategoryGap="40%"
+                            >
+                              <CartesianGrid
+                                strokeDasharray="3 3"
+                                vertical={false}
+                                stroke="hsl(var(--border))"
+                              />
+                              <XAxis
+                                dataKey="name"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                              />
+                              <YAxis
+                                allowDecimals={false}
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                                width={28}
+                              />
+                              <Tooltip
+                                cursor={{ fill: "hsl(var(--muted))" }}
+                                contentStyle={{
+                                  background: "hsl(var(--card))",
+                                  border: "1px solid hsl(var(--border))",
+                                  borderRadius: "8px",
+                                  fontSize: "12px",
+                                  color: "hsl(var(--foreground))",
+                                }}
+                                formatter={(v: number) => [v, "FTE"]}
+                              />
+                              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={80}>
+                                <Cell fill="hsl(var(--primary))" />
+                                <Cell fill={nonFieldAbove ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"} opacity={0.6} />
+                              </Bar>
+                              {benchmarkY !== null && (
+                                <ReferenceLine
+                                  y={benchmarkY}
+                                  stroke="hsl(var(--primary))"
+                                  strokeDasharray="5 3"
+                                  strokeWidth={1.5}
+                                  label={{
+                                    value: `3:1 target (${benchmarkY})`,
+                                    position: "insideTopRight",
+                                    fontSize: 11,
+                                    fill: "hsl(var(--primary))",
+                                    dy: -4,
+                                  }}
+                                />
+                              )}
+                            </BarChart>
+                          </ResponsiveContainer>
+
+                          <div className="flex items-center gap-5 mt-3 text-xs text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-1.5">
+                              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-primary" />
+                              Field FTE
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className="inline-block w-2.5 h-2.5 rounded-sm"
+                                style={{ background: nonFieldAbove ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))", opacity: 0.6 }}
+                              />
+                              Non-Field FTE
+                            </span>
+                            {benchmarkY !== null && (
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-block w-4 border-t border-dashed border-primary" style={{ borderWidth: 1.5 }} />
+                                3:1 industry benchmark
+                              </span>
+                            )}
+                          </div>
+
+                          {benchmarkY !== null && nonFieldAbove && (
+                            <p className="mt-3 text-xs text-destructive leading-relaxed">
+                              Non-field headcount ({inputs.nonFieldFTE}) exceeds the 3:1 benchmark ({benchmarkY}). This may indicate overhead bloat worth investigating.
+                            </p>
+                          )}
+                          {benchmarkY !== null && !nonFieldAbove && inputs.nonFieldFTE > 0 && (
+                            <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                              Non-field headcount is within the 3:1 benchmark. Overhead looks proportionate to field capacity.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </div>
