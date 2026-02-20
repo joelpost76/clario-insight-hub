@@ -3,6 +3,16 @@
 // Metrics are always recalculated client-side from the stored inputs.
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -465,9 +475,84 @@ export default function RPEHealthCheck() {
                   </p>
                 </div>
               )}
+            {/* ── Staffing Breakdown Chart ─────────────────────────────────── */}
+            {hasHeadcount && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                  Staffing Breakdown
+                </p>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-foreground">
+                      Field vs. Non-Field FTE
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Headcount split between production staff and overhead roles.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart
+                        data={[
+                          { name: "Field FTE",     value: inputs.fieldFTE },
+                          { name: "Non-Field FTE", value: inputs.nonFieldFTE },
+                        ]}
+                        margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                        barCategoryGap="40%"
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                        />
+                        <YAxis
+                          allowDecimals={false}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                          width={28}
+                        />
+                        <Tooltip
+                          cursor={{ fill: "hsl(var(--muted))" }}
+                          contentStyle={{
+                            background: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                            color: "hsl(var(--foreground))",
+                          }}
+                          formatter={(v: number) => [v, "FTE"]}
+                        />
+                        <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={80}>
+                          <Cell fill="hsl(var(--primary))" />
+                          <Cell fill="hsl(var(--muted-foreground))" opacity={0.5} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="flex items-center gap-5 mt-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-primary" />
+                        Field FTE
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-muted-foreground opacity-50" />
+                        Non-Field FTE
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </AppLayout>
   );
 }
+
