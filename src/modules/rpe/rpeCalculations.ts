@@ -4,8 +4,19 @@
 //
 // All helpers guard against divide-by-zero; they return undefined when the
 // required inputs are missing or zero rather than crashing or returning Infinity.
+//
+// VERSIONING GUIDE
+// ────────────────
+// To add a new calculation version (e.g. rpe_v2):
+//   1. Add 'rpe_v2' to the RPEVersion union in rpeTypes.ts
+//   2. Write a new calculateRPE_v2(inputs) function below
+//   3. Add a `case 'rpe_v2': return calculateRPE_v2(inputs);` to calculateRPE()
+//   4. Update CURRENT_RPE_VERSION in rpeTypes.ts to 'rpe_v2'
+// Old snapshots stored with calculation_version = 'rpe_v1' will still be
+// rehydratable using calculateRPE(inputs, 'rpe_v1').
 
-import type { RPEInputs, RPEMetrics, RPEBenchmark } from "./rpeTypes";
+import type { RPEInputs, RPEMetrics, RPEBenchmark, RPEVersion } from "./rpeTypes";
+import { CURRENT_RPE_VERSION } from "./rpeTypes";
 
 /**
  * DEFAULT_JOB_DURATION_WEEKS
@@ -117,14 +128,15 @@ export function calcJobsPerRole(
   return jobsPerYear / count;
 }
 
-// ─── Main Calculator ──────────────────────────────────────────────────────────
+// ─── v1 Calculator ───────────────────────────────────────────────────────────
 
 /**
- * calculateRPEMetrics
- * Orchestrates all the individual calculations and returns a single RPEMetrics object.
- * This is the primary function to call from the UI.
+ * calculateRPE_v1
+ * The initial RPE calculation engine. Orchestrates all individual calculations
+ * and returns a single RPEMetrics object. Any future breaking change to the
+ * formulas should live in calculateRPE_v2 — do not modify this function.
  */
-export function calculateRPEMetrics(inputs: RPEInputs): RPEMetrics {
+export function calculateRPE_v1(inputs: RPEInputs): RPEMetrics {
   const totalFTE = calcTotalFTE(inputs);
   const jobsPerYear = calcJobsPerYear(inputs.revenue, inputs.averageContractValue);
 
@@ -140,6 +152,36 @@ export function calculateRPEMetrics(inputs: RPEInputs): RPEMetrics {
     jobsPerDesigner: calcJobsPerRole(jobsPerYear, inputs.designerCount),
     jobsPerSales: calcJobsPerRole(jobsPerYear, inputs.salesCount),
   };
+}
+
+// ─── Versioned Dispatcher ────────────────────────────────────────────────────
+
+/**
+ * calculateRPE
+ * The public entry point. Always call this — never call calculateRPE_v1 directly
+ * from UI code. Pass the version stored on a snapshot row to replay historical
+ * calculations with the correct engine.
+ *
+ * To add rpe_v2: add a case here and a calculateRPE_v2 function above.
+ */
+export function calculateRPE(
+  inputs: RPEInputs,
+  version: RPEVersion = CURRENT_RPE_VERSION
+): RPEMetrics {
+  switch (version) {
+    case 'rpe_v1':
+    default:
+      return calculateRPE_v1(inputs);
+  }
+}
+
+/**
+ * calculateRPEMetrics
+ * Alias kept for backwards-compatibility with existing UI code.
+ * New code should call calculateRPE() directly.
+ */
+export function calculateRPEMetrics(inputs: RPEInputs): RPEMetrics {
+  return calculateRPE(inputs);
 }
 
 // ─── Benchmarking ─────────────────────────────────────────────────────────────
