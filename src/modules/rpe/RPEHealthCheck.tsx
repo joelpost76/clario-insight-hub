@@ -1,5 +1,6 @@
 // ─── RPE Health Check ─────────────────────────────────────────────────────────
-// Inputs are persisted per workspace via an upsert on every change.
+// Inputs are persisted per workspace via an upsert on every change (rpe_health_check_state).
+// Each explicit "Save Snapshot" creates a versioned, immutable row in rpe_assessments.
 // Metrics are always recalculated client-side from the stored inputs.
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -14,7 +15,7 @@ import {
   Cell,
   ReferenceLine,
 } from "recharts";
-import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw } from "lucide-react";
+import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw, Save, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,16 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useToast } from "@/hooks/use-toast";
 
 import type { RPEInputs } from "./rpeTypes";
-import { calculateRPEMetrics, getRPEBenchmark } from "./rpeCalculations";
+import { CURRENT_RPE_VERSION } from "./rpeTypes";
+import { calculateRPE, calculateRPEMetrics, getRPEBenchmark } from "./rpeCalculations";
+import { fromRow, toInsertPayload } from "./rpeSupabaseMapper";
+import type { RPEAssessmentRow } from "./rpeSupabaseMapper";
 import { RPEGauge } from "./RPEGauge";
 import { MetricCard } from "./components/MetricCard";
 
@@ -109,8 +115,11 @@ function FormField({
 
 export default function RPEHealthCheck() {
   const { workspaceId } = useWorkspace();
+  const { toast } = useToast();
   const [inputs, setInputs] = useState<RPEInputs>(DEFAULTS);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [lastSnapshotAt, setLastSnapshotAt] = useState<string | null>(null);
 
   const metrics = useMemo(() => calculateRPEMetrics(inputs), [inputs]);
   const benchmark = useMemo(() => getRPEBenchmark(metrics.totalRPE), [metrics.totalRPE]);
@@ -119,22 +128,46 @@ export default function RPEHealthCheck() {
   const hasHeadcount = inputs.fieldFTE > 0 || inputs.nonFieldFTE > 0;
   const hasCore = hasRevenue && hasHeadcount;
 
-  // ── Load persisted inputs on mount ─────────────────────────────────────────
+  // ── Load latest snapshot from rpe_assessments (versioned history) ──────────
+  // Falls back to rpe_health_check_state (live scratchpad) if no snapshot yet.
   useEffect(() => {
     if (!workspaceId) { setInitialLoading(false); return; }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
-      .from("rpe_health_check_state")
-      .select("inputs")
-      .eq("workspace_id", workspaceId)
-      .maybeSingle()
-      .then(({ data }: { data: { inputs: RPEInputs } | null }) => {
-        if (data?.inputs) setInputs({ ...DEFAULTS, ...data.inputs });
+
+    const loadLatest = async () => {
+      // 1. Try the versioned snapshot table first
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: snapshotRow } = await (supabase as any)
+        .from("rpe_assessments")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("captured_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (snapshotRow) {
+        const { inputs: hydratedInputs } = fromRow(snapshotRow as RPEAssessmentRow);
+        setInputs({ ...DEFAULTS, ...hydratedInputs });
+        setLastSnapshotAt(snapshotRow.captured_at);
         setInitialLoading(false);
-      });
+        return;
+      }
+
+      // 2. Fall back to the live scratchpad state
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: stateRow } = await (supabase as any)
+        .from("rpe_health_check_state")
+        .select("inputs")
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+
+      if (stateRow?.inputs) setInputs({ ...DEFAULTS, ...stateRow.inputs });
+      setInitialLoading(false);
+    };
+
+    loadLatest();
   }, [workspaceId]);
 
-  // ── Persist helper (upsert on workspace_id conflict) ───────────────────────
+  // ── Persist helper — keeps the live scratchpad in sync ─────────────────────
   const persist = useCallback(async (updated: RPEInputs) => {
     if (!workspaceId) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,6 +178,36 @@ export default function RPEHealthCheck() {
         { onConflict: "workspace_id" }
       );
   }, [workspaceId]);
+
+  // ── Save versioned snapshot to rpe_assessments ────────────────────────────
+  const saveSnapshot = useCallback(async () => {
+    if (!workspaceId || !hasCore) return;
+    setSaving(true);
+    const freshMetrics = calculateRPE(inputs, CURRENT_RPE_VERSION);
+    const payload = toInsertPayload(workspaceId, inputs, freshMetrics);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("rpe_assessments")
+      .insert(payload)
+      .select("captured_at")
+      .single();
+
+    if (error) {
+      toast({
+        title: "Snapshot failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setLastSnapshotAt(data?.captured_at ?? new Date().toISOString());
+      toast({
+        title: "Snapshot saved",
+        description: `RPE snapshot recorded using ${CURRENT_RPE_VERSION}.`,
+      });
+    }
+    setSaving(false);
+  }, [workspaceId, inputs, hasCore, toast]);
 
   function set<K extends keyof RPEInputs>(key: K, value: RPEInputs[K]) {
     setInputs((prev) => {
@@ -195,14 +258,40 @@ export default function RPEHealthCheck() {
       <div className="max-w-7xl mx-auto space-y-8">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="space-y-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            RPE Health Check
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-            A quick scan of revenue per employee and staffing load. This helps us see where
-            the organization is carrying extra weight or asking too much of a small team.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                RPE Health Check
+              </h1>
+              <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                {CURRENT_RPE_VERSION}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+              A quick scan of revenue per employee and staffing load. This helps us see where
+              the organization is carrying extra weight or asking too much of a small team.
+            </p>
+            {lastSnapshotAt && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-primary" />
+                Last snapshot:{" "}
+                {new Date(lastSnapshotAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            )}
+          </div>
+          <Button
+            onClick={saveSnapshot}
+            disabled={saving || !hasCore}
+            size="sm"
+            className="shrink-0 gap-1.5"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {saving ? "Saving…" : "Save Snapshot"}
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">

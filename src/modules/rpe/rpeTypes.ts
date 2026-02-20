@@ -2,6 +2,14 @@
 // These types describe the raw numbers a consultant enters and the metrics
 // the app derives from them. Keep this file free of any UI or logic.
 
+// ─── Versioning ───────────────────────────────────────────────────────────────
+// Each time the calculation logic changes materially, bump the version string
+// and add a corresponding calculateRPE_vN function in rpeCalculations.ts.
+// The version is stored alongside every snapshot so we can compare apples to
+// apples when reviewing historical data.
+export type RPEVersion = 'rpe_v1' | 'rpe_v2';
+export const CURRENT_RPE_VERSION: RPEVersion = 'rpe_v1';
+
 export interface RPEInputs {
   /** Total annual revenue for the company (required) */
   revenue: number;
