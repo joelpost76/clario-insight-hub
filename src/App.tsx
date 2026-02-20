@@ -27,6 +27,8 @@ import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
+// RPE Health Check
+import RPEHealthCheck from "./modules/rpe/RPEHealthCheck";
 // Scope Creep module
 import ScopeCreepInit from "./pages/scope-creep/ScopeCreepInit";
 import ScopeCreepAssessment from "./pages/scope-creep/ScopeCreepAssessment";
@@ -169,6 +171,15 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <Welcome />
+                </RequireWorkspace>
+              }
+            />
+            {/* ── RPE Health Check ─────────────────────────────────────── */}
+            <Route
+              path="/rpe"
+              element={
+                <RequireWorkspace>
+                  <RPEHealthCheck />
                 </RequireWorkspace>
               }
             />
