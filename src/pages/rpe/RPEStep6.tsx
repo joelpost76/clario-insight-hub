@@ -42,8 +42,9 @@ export default function RPEStep6() {
 
   const scores = SCORING_CATEGORIES.map((c) => ({
     label: c.label,
-    score: (stepData as any)[c.key] as number | null,
-  })).filter((c) => c.score !== null).sort((a, b) => a.score! - b.score!);
+    score: (stepData as any)[c.key] as number | null | undefined,
+  })).filter((c) => c.score != null && SCORE_LABELS[c.score] !== undefined)
+    .sort((a, b) => a.score! - b.score!) as { label: string; score: number }[];
 
   const weakestCategory = scores[0]?.label ?? "Operations";
   const avgScore = scores.length > 0
