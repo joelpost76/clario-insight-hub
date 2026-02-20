@@ -7,6 +7,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -120,6 +122,7 @@ export default function RPEHealthCheck() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSnapshotAt, setLastSnapshotAt] = useState<string | null>(null);
+  const [snapshotHistory, setSnapshotHistory] = useState<{ date: string; totalRPE: number; label: string }[]>([]);
 
   const metrics = useMemo(() => calculateRPEMetrics(inputs), [inputs]);
   const benchmark = useMemo(() => getRPEBenchmark(metrics.totalRPE), [metrics.totalRPE]);
@@ -167,6 +170,35 @@ export default function RPEHealthCheck() {
     loadLatest();
   }, [workspaceId]);
 
+  // ── Load snapshot history for trend chart ──────────────────────────────────
+  const loadHistory = useCallback(async () => {
+    if (!workspaceId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from("rpe_assessments")
+      .select("captured_at, total_rpe")
+      .eq("workspace_id", workspaceId)
+      .order("captured_at", { ascending: true })
+      .limit(20);
+
+    if (data && data.length > 0) {
+      setSnapshotHistory(
+        data
+          .filter((r: { total_rpe: number | null }) => r.total_rpe !== null)
+          .map((r: { captured_at: string; total_rpe: number }) => ({
+            date: r.captured_at,
+            totalRPE: Math.round(r.total_rpe),
+            label: new Date(r.captured_at).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            }),
+          }))
+      );
+    }
+  }, [workspaceId]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
   // ── Persist helper — keeps the live scratchpad in sync ─────────────────────
   const persist = useCallback(async (updated: RPEInputs) => {
     if (!workspaceId) return;
@@ -205,9 +237,10 @@ export default function RPEHealthCheck() {
         title: "Snapshot saved",
         description: `RPE snapshot recorded using ${CURRENT_RPE_VERSION}.`,
       });
+      loadHistory();
     }
     setSaving(false);
-  }, [workspaceId, inputs, hasCore, toast]);
+  }, [workspaceId, inputs, hasCore, toast, loadHistory]);
 
   function set<K extends keyof RPEInputs>(key: K, value: RPEInputs[K]) {
     setInputs((prev) => {
@@ -684,6 +717,83 @@ export default function RPEHealthCheck() {
                         </>
                       );
                     })()}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* ── RPE Trend Chart ──────────────────────────────────────────── */}
+            {snapshotHistory.length >= 2 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                  RPE Over Time
+                </p>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-foreground">
+                      Total RPE Trend
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Revenue per FTE across saved snapshots. A rising line suggests improving productivity.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart
+                        data={snapshotHistory}
+                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          vertical={false}
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="label"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                        />
+                        <YAxis
+                          axisLine={false}
+                          tickLine={false}
+                          width={60}
+                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                          tickFormatter={(v: number) =>
+                            "$" + (v >= 1000 ? `${Math.round(v / 1000)}k` : v)
+                          }
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                            color: "hsl(var(--foreground))",
+                          }}
+                          formatter={(v: number) => [
+                            new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: "USD",
+                              maximumFractionDigits: 0,
+                            }).format(v),
+                            "Total RPE",
+                          ]}
+                          labelFormatter={(label) => `Snapshot: ${label}`}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="totalRPE"
+                          stroke="hsl(var(--primary))"
+                          strokeWidth={2}
+                          dot={{ fill: "hsl(var(--primary))", r: 4, strokeWidth: 0 }}
+                          activeDot={{ r: 5, strokeWidth: 0 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                      Each point represents a saved snapshot. Use this to track whether
+                      operational improvements are showing up in RPE over time.
+                    </p>
                   </CardContent>
                 </Card>
               </div>
