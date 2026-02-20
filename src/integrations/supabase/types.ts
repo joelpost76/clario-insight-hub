@@ -706,6 +706,41 @@ export type Database = {
           },
         ]
       }
+      scope_discipline_state: {
+        Row: {
+          analysis: Json | null
+          created_at: string
+          id: string
+          responses: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          responses?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scope_discipline_state_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sipocs: {
         Row: {
           created_at: string
