@@ -7,6 +7,7 @@ import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw } from "lucid
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
@@ -122,8 +123,8 @@ export default function RPEHealthCheck() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <AppLayout>
+      <div className="max-w-7xl mx-auto space-y-8">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="space-y-1.5">
@@ -410,6 +411,6 @@ export default function RPEHealthCheck() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
