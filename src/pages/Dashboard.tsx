@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RPESummaryCard } from "@/modules/rpe/components/RPESummaryCard";
 
 const WELCOME_SEEN_PREFIX = "welcome_seen_";
 
@@ -722,7 +723,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats row — client-centric */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
           <StatCard label="Total Clients" value={clients.length} sub="Active in workspace" />
           <StatCard
             label="Avg Health Score"
@@ -742,6 +743,16 @@ export default function Dashboard() {
             accent="#B8A94A"
           />
         </div>
+
+        {/* RPE Summary Card */}
+        {workspaceId && (
+          <div style={{ marginBottom: 28 }}>
+            <RPESummaryCard
+              workspaceId={workspaceId}
+              onOpenDetails={() => navigate("/rpe")}
+            />
+          </div>
+        )}
 
         {/* Main content */}
         <div style={{ display: "grid", gridTemplateColumns: selectedClient ? "1fr 380px" : "1fr", gap: 20, alignItems: "start" }}>
