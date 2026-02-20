@@ -1,8 +1,8 @@
 // ─── RPE Health Check ─────────────────────────────────────────────────────────
-// A fully client-side diagnostic tool for a remodeling owner / leadership team.
-// No database in v1 — all state is local. Supabase wiring comes in a later pass.
+// Inputs are persisted per workspace via an upsert on every change.
+// Metrics are always recalculated client-side from the stored inputs.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 import type { RPEInputs } from "./rpeTypes";
 import { calculateRPEMetrics, getRPEBenchmark } from "./rpeCalculations";
@@ -94,9 +97,10 @@ function FormField({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function RPEHealthCheck() {
+  const { workspaceId } = useWorkspace();
   const [inputs, setInputs] = useState<RPEInputs>(DEFAULTS);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  // Derive metrics from inputs on every render — no manual "recalculate" needed.
   const metrics = useMemo(() => calculateRPEMetrics(inputs), [inputs]);
   const benchmark = useMemo(() => getRPEBenchmark(metrics.totalRPE), [metrics.totalRPE]);
 
@@ -104,12 +108,44 @@ export default function RPEHealthCheck() {
   const hasHeadcount = inputs.fieldFTE > 0 || inputs.nonFieldFTE > 0;
   const hasCore = hasRevenue && hasHeadcount;
 
+  // ── Load persisted inputs on mount ─────────────────────────────────────────
+  useEffect(() => {
+    if (!workspaceId) { setInitialLoading(false); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("rpe_health_check_state")
+      .select("inputs")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle()
+      .then(({ data }: { data: { inputs: RPEInputs } | null }) => {
+        if (data?.inputs) setInputs({ ...DEFAULTS, ...data.inputs });
+        setInitialLoading(false);
+      });
+  }, [workspaceId]);
+
+  // ── Persist helper (upsert on workspace_id conflict) ───────────────────────
+  const persist = useCallback(async (updated: RPEInputs) => {
+    if (!workspaceId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("rpe_health_check_state")
+      .upsert(
+        { workspace_id: workspaceId, inputs: updated },
+        { onConflict: "workspace_id" }
+      );
+  }, [workspaceId]);
+
   function set<K extends keyof RPEInputs>(key: K, value: RPEInputs[K]) {
-    setInputs((prev) => ({ ...prev, [key]: value }));
+    setInputs((prev) => {
+      const updated = { ...prev, [key]: value };
+      persist(updated);
+      return updated;
+    });
   }
 
   function reset() {
     setInputs(DEFAULTS);
+    persist(DEFAULTS);
   }
 
   // ── Role-load helper text ───────────────────────────────────────────────────
@@ -120,6 +156,27 @@ export default function RPEHealthCheck() {
     if (jobsPerRole > 25)
       return `Moderate load. Worth watching as volume grows.`;
     return `Load looks manageable. ${role}s have room to give each job proper attention.`;
+  }
+
+  // ── Loading skeleton ────────────────────────────────────────────────────────
+  if (initialLoading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto space-y-8">
+          <div className="space-y-1.5">
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
+            <Skeleton className="h-[520px] rounded-lg" />
+            <div className="space-y-6">
+              <Skeleton className="h-56 rounded-lg" />
+              <Skeleton className="h-48 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
   }
 
   return (
