@@ -22,6 +22,8 @@ interface RPESummaryCardProps {
 
 interface RPESnapshotRow {
   total_rpe: number | null;
+  field_rpe: number | null;
+  non_field_rpe: number | null;
   captured_at: string;
   calculation_version: string | null;
 }
@@ -50,7 +52,7 @@ export function RPESummaryCard({ workspaceId, onOpenDetails }: RPESummaryCardPro
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error: fetchError } = await (supabase as any)
         .from("rpe_assessments")
-        .select("total_rpe, captured_at, calculation_version")
+        .select("total_rpe, field_rpe, non_field_rpe, captured_at, calculation_version")
         .eq("workspace_id", workspaceId)
         .order("captured_at", { ascending: false })
         .limit(1)
@@ -90,8 +92,11 @@ export function RPESummaryCard({ workspaceId, onOpenDetails }: RPESummaryCardPro
         </CardHeader>
         <CardContent className="space-y-3">
           <Skeleton className="h-8 w-36" />
+          <div className="flex gap-3">
+            <Skeleton className="h-12 flex-1 rounded-md" />
+            <Skeleton className="h-12 flex-1 rounded-md" />
+          </div>
           <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-4 w-32" />
         </CardContent>
       </Card>
     );
@@ -160,6 +165,32 @@ export function RPESummaryCard({ workspaceId, onOpenDetails }: RPESummaryCardPro
             {fmtCurrency(snapshot.total_rpe ?? 0)}
           </p>
         </div>
+
+        {/* Sub-metrics: field vs non-field */}
+        {(snapshot.field_rpe != null || snapshot.non_field_rpe != null) && (
+          <div className="flex gap-3">
+            {snapshot.field_rpe != null && (
+              <div className="flex-1 rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">
+                  Field RPE
+                </p>
+                <p className="text-base font-semibold text-foreground leading-none">
+                  {fmtCurrency(snapshot.field_rpe)}
+                </p>
+              </div>
+            )}
+            {snapshot.non_field_rpe != null && (
+              <div className="flex-1 rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">
+                  Non-Field RPE
+                </p>
+                <p className="text-base font-semibold text-foreground leading-none">
+                  {fmtCurrency(snapshot.non_field_rpe)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Context */}
         <div className="space-y-1.5">
