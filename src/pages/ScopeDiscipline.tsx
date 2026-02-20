@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { GitPullRequest, Zap, RefreshCw, Loader2, AlertCircle, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { ScopeDisciplineResponses, ScopeDisciplineAnalysis } from "@/types/scopeDisciplineTypes";
 
 const EMPTY: ScopeDisciplineResponses = {
@@ -120,16 +121,54 @@ async function runScopeDisciplineAnalysis(
 }
 
 export default function ScopeDiscipline() {
+  const { workspaceId } = useWorkspace();
   const [responses, setResponses] = useState<ScopeDisciplineResponses>(EMPTY);
   const [analysis, setAnalysis] = useState<ScopeDisciplineAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // ── Load persisted state on mount ────────────────────────────────────────
+  useEffect(() => {
+    if (!workspaceId) { setInitialLoading(false); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("scope_discipline_state")
+      .select("responses, analysis")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle()
+      .then(({ data }: { data: { responses: ScopeDisciplineResponses; analysis: ScopeDisciplineAnalysis | null } | null }) => {
+        if (data) {
+          setResponses({ ...EMPTY, ...data.responses });
+          if (data.analysis) setAnalysis(data.analysis);
+        }
+        setInitialLoading(false);
+      });
+  }, [workspaceId]);
+
+  // ── Persist helper (upsert) ───────────────────────────────────────────────
+  const persist = async (
+    updatedResponses: ScopeDisciplineResponses,
+    updatedAnalysis: ScopeDisciplineAnalysis | null
+  ) => {
+    if (!workspaceId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("scope_discipline_state")
+      .upsert(
+        { workspace_id: workspaceId, responses: updatedResponses, analysis: updatedAnalysis },
+        { onConflict: "workspace_id" }
+      );
+  };
+
   const set = (key: keyof ScopeDisciplineResponses) =>
-    (e: React.ChangeEvent<HTMLTextAreaElement>) =>
-      setResponses((prev) => ({ ...prev, [key]: e.target.value }));
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const updated = { ...responses, [key]: e.target.value };
+      setResponses(updated);
+      persist(updated, analysis);
+    };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -137,6 +176,7 @@ export default function ScopeDiscipline() {
     try {
       const result = await runScopeDisciplineAnalysis(responses);
       setAnalysis(result);
+      await persist(responses, result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError(msg);
@@ -152,6 +192,16 @@ export default function ScopeDiscipline() {
 
   const filledCount = Object.values(responses).filter((v) => v.trim().length > 0).length;
   const totalFields = Object.keys(EMPTY).length;
+
+  if (initialLoading) {
+    return (
+      <AppLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
