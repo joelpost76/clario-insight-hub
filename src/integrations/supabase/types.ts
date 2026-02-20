@@ -457,6 +457,98 @@ export type Database = {
         }
         Relationships: []
       }
+      rpe_assessments: {
+        Row: {
+          average_contract_value: number | null
+          backlog: number | null
+          backlog_months: number | null
+          calculation_version: string
+          captured_at: string
+          created_at: string
+          designer_count: number | null
+          field_fte: number | null
+          field_rpe: number | null
+          id: string
+          implied_wip: number | null
+          jobs_per_designer: number | null
+          jobs_per_pm: number | null
+          jobs_per_sales: number | null
+          jobs_per_year: number | null
+          metadata: Json | null
+          non_field_fte: number | null
+          non_field_rpe: number | null
+          pm_count: number | null
+          revenue: number | null
+          sales_count: number | null
+          total_fte: number | null
+          total_rpe: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          average_contract_value?: number | null
+          backlog?: number | null
+          backlog_months?: number | null
+          calculation_version: string
+          captured_at?: string
+          created_at?: string
+          designer_count?: number | null
+          field_fte?: number | null
+          field_rpe?: number | null
+          id?: string
+          implied_wip?: number | null
+          jobs_per_designer?: number | null
+          jobs_per_pm?: number | null
+          jobs_per_sales?: number | null
+          jobs_per_year?: number | null
+          metadata?: Json | null
+          non_field_fte?: number | null
+          non_field_rpe?: number | null
+          pm_count?: number | null
+          revenue?: number | null
+          sales_count?: number | null
+          total_fte?: number | null
+          total_rpe?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          average_contract_value?: number | null
+          backlog?: number | null
+          backlog_months?: number | null
+          calculation_version?: string
+          captured_at?: string
+          created_at?: string
+          designer_count?: number | null
+          field_fte?: number | null
+          field_rpe?: number | null
+          id?: string
+          implied_wip?: number | null
+          jobs_per_designer?: number | null
+          jobs_per_pm?: number | null
+          jobs_per_sales?: number | null
+          jobs_per_year?: number | null
+          metadata?: Json | null
+          non_field_fte?: number | null
+          non_field_rpe?: number | null
+          pm_count?: number | null
+          revenue?: number | null
+          sales_count?: number | null
+          total_fte?: number | null
+          total_rpe?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rpe_assessments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rpe_health_check_state: {
         Row: {
           created_at: string
