@@ -1,0 +1,415 @@
+// ─── RPE Health Check ─────────────────────────────────────────────────────────
+// A fully client-side diagnostic tool for a remodeling owner / leadership team.
+// No database in v1 — all state is local. Supabase wiring comes in a later pass.
+
+import { useState, useMemo } from "react";
+import { BarChart3, Users, Briefcase, Clock, TrendingUp, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+
+import type { RPEInputs } from "./rpeTypes";
+import { calculateRPEMetrics, getRPEBenchmark } from "./rpeCalculations";
+import { RPEGauge } from "./RPEGauge";
+import { MetricCard } from "./components/MetricCard";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(value: number | undefined, style: "currency" | "decimal" = "currency"): string {
+  if (value === undefined || value === null) return "—";
+  if (style === "currency") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
+}
+
+const DEFAULTS: RPEInputs = {
+  revenue: 0,
+  fieldFTE: 0,
+  nonFieldFTE: 0,
+  backlog: undefined,
+  averageContractValue: undefined,
+  pmCount: undefined,
+  designerCount: undefined,
+  salesCount: undefined,
+};
+
+// ─── Field Component ──────────────────────────────────────────────────────────
+
+function FormField({
+  label,
+  id,
+  value,
+  onChange,
+  prefix,
+  placeholder,
+  required,
+}: {
+  label: string;
+  id: string;
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  prefix?: string;
+  placeholder?: string;
+  required?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-sm font-medium">
+        {label}
+        {!required && (
+          <span className="ml-1 text-xs text-muted-foreground font-normal">(optional)</span>
+        )}
+      </Label>
+      <div className="relative">
+        {prefix && (
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+            {prefix}
+          </span>
+        )}
+        <Input
+          id={id}
+          type="number"
+          min={0}
+          placeholder={placeholder ?? "0"}
+          value={value ?? ""}
+          onChange={(e) => {
+            const raw = e.target.value;
+            onChange(raw === "" ? undefined : Number(raw));
+          }}
+          className={prefix ? "pl-7" : ""}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function RPEHealthCheck() {
+  const [inputs, setInputs] = useState<RPEInputs>(DEFAULTS);
+
+  // Derive metrics from inputs on every render — no manual "recalculate" needed.
+  const metrics = useMemo(() => calculateRPEMetrics(inputs), [inputs]);
+  const benchmark = useMemo(() => getRPEBenchmark(metrics.totalRPE), [metrics.totalRPE]);
+
+  const hasRevenue = inputs.revenue > 0;
+  const hasHeadcount = inputs.fieldFTE > 0 || inputs.nonFieldFTE > 0;
+  const hasCore = hasRevenue && hasHeadcount;
+
+  function set<K extends keyof RPEInputs>(key: K, value: RPEInputs[K]) {
+    setInputs((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function reset() {
+    setInputs(DEFAULTS);
+  }
+
+  // ── Role-load helper text ───────────────────────────────────────────────────
+  function roleLoadSubtext(jobsPerRole: number | undefined, role: string): string {
+    if (jobsPerRole === undefined) return "Enter job count to see load.";
+    if (jobsPerRole > 40)
+      return `${role}s are carrying a heavy load. This can signal burnout risk and missed details.`;
+    if (jobsPerRole > 25)
+      return `Moderate load. Worth watching as volume grows.`;
+    return `Load looks manageable. ${role}s have room to give each job proper attention.`;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            RPE Health Check
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+            A quick scan of revenue per employee and staffing load. This helps us see where
+            the organization is carrying extra weight or asking too much of a small team.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
+
+          {/* ── Left: Inputs ─────────────────────────────────────────────── */}
+          <Card className="sticky top-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold">Inputs</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={reset}
+                  className="text-muted-foreground h-7 px-2 text-xs gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Reset
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Required fields */}
+              <div className="space-y-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Core
+                </p>
+                <FormField
+                  id="revenue"
+                  label="Annual Revenue"
+                  prefix="$"
+                  placeholder="2000000"
+                  value={inputs.revenue || undefined}
+                  onChange={(v) => set("revenue", v ?? 0)}
+                  required
+                />
+                <FormField
+                  id="fieldFTE"
+                  label="Field FTE"
+                  placeholder="8"
+                  value={inputs.fieldFTE || undefined}
+                  onChange={(v) => set("fieldFTE", v ?? 0)}
+                  required
+                />
+                <FormField
+                  id="nonFieldFTE"
+                  label="Non-Field FTE"
+                  placeholder="3"
+                  value={inputs.nonFieldFTE || undefined}
+                  onChange={(v) => set("nonFieldFTE", v ?? 0)}
+                  required
+                />
+              </div>
+
+              <Separator />
+
+              {/* Volume fields */}
+              <div className="space-y-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Volume
+                </p>
+                <FormField
+                  id="averageContractValue"
+                  label="Average Contract Value"
+                  prefix="$"
+                  placeholder="85000"
+                  value={inputs.averageContractValue}
+                  onChange={(v) => set("averageContractValue", v)}
+                />
+                <FormField
+                  id="backlog"
+                  label="Current Backlog"
+                  prefix="$"
+                  placeholder="1200000"
+                  value={inputs.backlog}
+                  onChange={(v) => set("backlog", v)}
+                />
+              </div>
+
+              <Separator />
+
+              {/* Role counts */}
+              <div className="space-y-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Role Counts
+                </p>
+                <FormField
+                  id="pmCount"
+                  label="Project Managers"
+                  placeholder="2"
+                  value={inputs.pmCount}
+                  onChange={(v) => set("pmCount", v)}
+                />
+                <FormField
+                  id="designerCount"
+                  label="Designers"
+                  placeholder="1"
+                  value={inputs.designerCount}
+                  onChange={(v) => set("designerCount", v)}
+                />
+                <FormField
+                  id="salesCount"
+                  label="Sales Reps"
+                  placeholder="2"
+                  value={inputs.salesCount}
+                  onChange={(v) => set("salesCount", v)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Right: Outputs ───────────────────────────────────────────── */}
+          <div className="space-y-6">
+
+            {/* ── RPE Gauge ───────────────────────────────────────────────── */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  <div className="shrink-0">
+                    <RPEGauge value={hasCore ? metrics.totalRPE : 0} benchmark={benchmark} />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h2 className="text-base font-semibold text-foreground">
+                      Total Company RPE
+                    </h2>
+                    <p className="text-3xl font-bold tracking-tight text-foreground">
+                      {hasCore ? fmt(metrics.totalRPE) : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
+                      This is revenue per full-time equivalent. Higher RPE usually means a leaner,
+                      more productive organization.
+                    </p>
+                    {hasCore && (
+                      <p className="text-xs text-muted-foreground italic">{benchmark.description}</p>
+                    )}
+                    {!hasCore && (
+                      <p className="text-xs text-muted-foreground">
+                        Enter annual revenue and headcount to see your RPE.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ── Metric Cards ─────────────────────────────────────────────── */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Key Metrics
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <MetricCard
+                  label="Field RPE"
+                  value={hasCore ? fmt(metrics.fieldRPE) : undefined}
+                  subtext="Revenue per field / production employee."
+                  icon={<BarChart3 className="w-4 h-4" />}
+                />
+                <MetricCard
+                  label="Non-Field RPE"
+                  value={hasCore ? fmt(metrics.nonFieldRPE) : undefined}
+                  subtext="Revenue per overhead employee."
+                  icon={<Users className="w-4 h-4" />}
+                />
+                <MetricCard
+                  label="Total FTE"
+                  value={hasHeadcount ? fmt(metrics.totalFTE, "decimal") : undefined}
+                  subtext="Field + non-field headcount."
+                  icon={<Users className="w-4 h-4" />}
+                />
+                <MetricCard
+                  label="Jobs per Year"
+                  value={
+                    metrics.jobsPerYear !== undefined
+                      ? fmt(metrics.jobsPerYear, "decimal")
+                      : undefined
+                  }
+                  subtext="Based on revenue ÷ average contract value."
+                  icon={<Briefcase className="w-4 h-4" />}
+                />
+                <MetricCard
+                  label="Implied WIP"
+                  value={
+                    metrics.impliedWIP !== undefined
+                      ? fmt(metrics.impliedWIP, "decimal")
+                      : undefined
+                  }
+                  subtext="Estimated jobs actively running right now (12-wk avg)."
+                  icon={<TrendingUp className="w-4 h-4" />}
+                />
+                <MetricCard
+                  label="Backlog (Months)"
+                  value={
+                    metrics.backlogMonths !== undefined
+                      ? fmt(metrics.backlogMonths, "decimal")
+                      : undefined
+                  }
+                  subtext="Current backlog relative to monthly revenue run-rate."
+                  icon={<Clock className="w-4 h-4" />}
+                />
+              </div>
+            </div>
+
+            {/* ── Role Load Grid ───────────────────────────────────────────── */}
+            {(inputs.pmCount || inputs.designerCount || inputs.salesCount) &&
+              metrics.jobsPerYear !== undefined && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                    Role Load
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {inputs.pmCount !== undefined && (
+                      <MetricCard
+                        label="Jobs / PM / Year"
+                        value={
+                          metrics.jobsPerPM !== undefined
+                            ? fmt(metrics.jobsPerPM, "decimal")
+                            : undefined
+                        }
+                        subtext={roleLoadSubtext(metrics.jobsPerPM, "PM")}
+                        highlight={
+                          metrics.jobsPerPM !== undefined && metrics.jobsPerPM > 40
+                            ? "caution"
+                            : metrics.jobsPerPM !== undefined && metrics.jobsPerPM <= 25
+                            ? "good"
+                            : "neutral"
+                        }
+                        icon={<Briefcase className="w-4 h-4" />}
+                      />
+                    )}
+                    {inputs.designerCount !== undefined && (
+                      <MetricCard
+                        label="Jobs / Designer / Year"
+                        value={
+                          metrics.jobsPerDesigner !== undefined
+                            ? fmt(metrics.jobsPerDesigner, "decimal")
+                            : undefined
+                        }
+                        subtext={roleLoadSubtext(metrics.jobsPerDesigner, "Designer")}
+                        highlight={
+                          metrics.jobsPerDesigner !== undefined && metrics.jobsPerDesigner > 40
+                            ? "caution"
+                            : metrics.jobsPerDesigner !== undefined && metrics.jobsPerDesigner <= 25
+                            ? "good"
+                            : "neutral"
+                        }
+                        icon={<BarChart3 className="w-4 h-4" />}
+                      />
+                    )}
+                    {inputs.salesCount !== undefined && (
+                      <MetricCard
+                        label="Jobs / Sales Rep / Year"
+                        value={
+                          metrics.jobsPerSales !== undefined
+                            ? fmt(metrics.jobsPerSales, "decimal")
+                            : undefined
+                        }
+                        subtext={roleLoadSubtext(metrics.jobsPerSales, "Sales rep")}
+                        highlight={
+                          metrics.jobsPerSales !== undefined && metrics.jobsPerSales > 40
+                            ? "caution"
+                            : metrics.jobsPerSales !== undefined && metrics.jobsPerSales <= 25
+                            ? "good"
+                            : "neutral"
+                        }
+                        icon={<TrendingUp className="w-4 h-4" />}
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                    If a number is high, it can signal a risk of burnout and missed details.
+                    Use this as a starting point for a conversation — not a final verdict.
+                  </p>
+                </div>
+              )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
