@@ -73,6 +73,7 @@ function FormField({
   prefix,
   placeholder,
   required,
+  hint,
 }: {
   label: string;
   id: string;
@@ -81,6 +82,7 @@ function FormField({
   prefix?: string;
   placeholder?: string;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -90,6 +92,9 @@ function FormField({
           <span className="ml-1 text-xs text-muted-foreground font-normal">(optional)</span>
         )}
       </Label>
+      {hint && (
+        <p className="text-[11px] text-muted-foreground leading-snug">{hint}</p>
+      )}
       <div className="relative">
         {prefix && (
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
@@ -351,6 +356,9 @@ export default function RPEHealthCheck() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Core
                 </p>
+                <p className="text-[11px] text-muted-foreground leading-snug -mt-2">
+                  These three fields drive all RPE figures.
+                </p>
                 <FormField
                   id="revenue"
                   label="Annual Revenue"
@@ -359,6 +367,7 @@ export default function RPEHealthCheck() {
                   value={inputs.revenue || undefined}
                   onChange={(v) => set("revenue", v ?? 0)}
                   required
+                  hint="Drives all RPE calculations. Total RPE = Revenue / Total FTE."
                 />
                 <FormField
                   id="fieldFTE"
@@ -367,6 +376,7 @@ export default function RPEHealthCheck() {
                   value={inputs.fieldFTE || undefined}
                   onChange={(v) => set("fieldFTE", v ?? 0)}
                   required
+                  hint="Directly affects Field RPE and Total RPE. These are your billable, project-facing staff."
                 />
                 <FormField
                   id="nonFieldFTE"
@@ -375,6 +385,7 @@ export default function RPEHealthCheck() {
                   value={inputs.nonFieldFTE || undefined}
                   onChange={(v) => set("nonFieldFTE", v ?? 0)}
                   required
+                  hint="Directly affects Non-Field RPE and Total RPE. Overhead, admin, and support roles."
                 />
               </div>
 
@@ -385,6 +396,9 @@ export default function RPEHealthCheck() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Volume
                 </p>
+                <p className="text-[11px] text-muted-foreground leading-snug -mt-2">
+                  Feed workload and backlog metrics — not RPE itself.
+                </p>
                 <FormField
                   id="averageContractValue"
                   label="Average Contract Value"
@@ -392,6 +406,7 @@ export default function RPEHealthCheck() {
                   placeholder="85000"
                   value={inputs.averageContractValue}
                   onChange={(v) => set("averageContractValue", v)}
+                  hint="Used to estimate jobs per year and workload per role. Does not affect RPE."
                 />
                 <FormField
                   id="backlog"
@@ -400,6 +415,7 @@ export default function RPEHealthCheck() {
                   placeholder="1200000"
                   value={inputs.backlog}
                   onChange={(v) => set("backlog", v)}
+                  hint="Used to calculate Backlog Months. Does not affect RPE."
                 />
               </div>
 
@@ -410,12 +426,16 @@ export default function RPEHealthCheck() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Role Counts
                 </p>
+                <p className="text-[11px] text-muted-foreground leading-snug -mt-2">
+                  Workload indicators only — these do not affect RPE.
+                </p>
                 <FormField
                   id="pmCount"
                   label="Project Managers"
                   placeholder="2"
                   value={inputs.pmCount}
                   onChange={(v) => set("pmCount", v)}
+                  hint="Workload indicator only. Shows jobs per PM — does not change RPE."
                 />
                 <FormField
                   id="designerCount"
@@ -423,6 +443,7 @@ export default function RPEHealthCheck() {
                   placeholder="1"
                   value={inputs.designerCount}
                   onChange={(v) => set("designerCount", v)}
+                  hint="Workload indicator only. Shows jobs per Designer — does not change RPE."
                 />
                 <FormField
                   id="salesCount"
@@ -430,6 +451,7 @@ export default function RPEHealthCheck() {
                   placeholder="2"
                   value={inputs.salesCount}
                   onChange={(v) => set("salesCount", v)}
+                  hint="Workload indicator only. Shows jobs per Sales Rep — does not change RPE."
                 />
               </div>
             </CardContent>
