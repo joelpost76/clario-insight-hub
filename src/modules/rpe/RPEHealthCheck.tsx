@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import type { RPEInputs } from "./rpeTypes";
 import { CURRENT_RPE_VERSION } from "./rpeTypes";
-import { calculateRPE, calculateRPEMetrics, getRPEBenchmark } from "./rpeCalculations";
+import { calculateRPE, calculateRPEMetrics, getRPEBenchmark, getRevenueTier } from "./rpeCalculations";
 import { fromRow, toInsertPayload } from "./rpeSupabaseMapper";
 import type { RPEAssessmentRow } from "./rpeSupabaseMapper";
 import { RPEGauge } from "./RPEGauge";
@@ -163,7 +163,8 @@ export default function RPEHealthCheck() {
   const [snapshotHistory, setSnapshotHistory] = useState<{ date: string; totalRPE: number; label: string }[]>([]);
 
   const metrics = useMemo(() => calculateRPEMetrics(inputs), [inputs]);
-  const benchmark = useMemo(() => getRPEBenchmark(metrics.totalRPE), [metrics.totalRPE]);
+  const benchmark = useMemo(() => getRPEBenchmark(metrics.totalRPE, inputs.revenue), [metrics.totalRPE, inputs.revenue]);
+  const tierInfo = useMemo(() => inputs.revenue > 0 ? getRevenueTier(inputs.revenue) : null, [inputs.revenue]);
 
   const hasRevenue = inputs.revenue > 0;
   const hasHeadcount = inputs.fieldFTE > 0 || inputs.nonFieldFTE > 0;
@@ -338,6 +339,11 @@ export default function RPEHealthCheck() {
               <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
                 {CURRENT_RPE_VERSION}
               </Badge>
+              {tierInfo && (
+                <Badge variant="secondary" className="text-xs font-normal">
+                  Benchmarked for: {tierInfo.rangeLabel} firms
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
               A quick scan of revenue per employee and staffing load. This helps us see where
@@ -409,6 +415,7 @@ export default function RPEHealthCheck() {
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   All calculations use the <Badge variant="outline" className="text-[10px] px-1.5 py-0 mx-0.5">{CURRENT_RPE_VERSION}</Badge> engine.
+                  Benchmarks automatically adjust based on company size — smaller firms are compared against lower thresholds, while larger firms face higher bars.
                   Saved snapshots are permanently tied to the version used at capture time so historical comparisons stay consistent.
                 </p>
               </CardContent>

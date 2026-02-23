@@ -15,7 +15,7 @@
 // Old snapshots stored with calculation_version = 'rpe_v1' will still be
 // rehydratable using calculateRPE(inputs, 'rpe_v1').
 
-import type { RPEInputs, RPEMetrics, RPEBenchmark, RPEVersion } from "./rpeTypes";
+import type { RPEInputs, RPEMetrics, RPEBenchmark, RPEVersion, RevenueTier, TierThresholds, RevenueTierInfo } from "./rpeTypes";
 import { CURRENT_RPE_VERSION } from "./rpeTypes";
 
 /**
@@ -184,34 +184,53 @@ export function calculateRPEMetrics(inputs: RPEInputs): RPEMetrics {
   return calculateRPE(inputs);
 }
 
-// ─── Benchmarking ─────────────────────────────────────────────────────────────
+// ─── Revenue-Tiered Benchmarking ──────────────────────────────────────────────
+
+const TIER_THRESHOLDS: Record<RevenueTier, TierThresholds> = {
+  emerging:    { critical: 80_000,  caution: 120_000, average: 170_000, good: 230_000 },
+  growth:      { critical: 100_000, caution: 150_000, average: 200_000, good: 280_000 },
+  established: { critical: 120_000, caution: 170_000, average: 220_000, good: 300_000 },
+  enterprise:  { critical: 140_000, caution: 190_000, average: 250_000, good: 330_000 },
+};
+
+/**
+ * getRevenueTier
+ * Maps annual revenue to one of four company-size tiers.
+ */
+export function getRevenueTier(revenue: number): RevenueTierInfo {
+  if (revenue < 2_000_000) return { tier: "emerging", label: "Emerging", rangeLabel: "Under $2M" };
+  if (revenue < 5_000_000) return { tier: "growth", label: "Growth", rangeLabel: "$2M – $5M" };
+  if (revenue < 10_000_000) return { tier: "established", label: "Established", rangeLabel: "$5M – $10M" };
+  return { tier: "enterprise", label: "Enterprise", rangeLabel: "$10M+" };
+}
 
 /**
  * getRPEBenchmark
- * Maps a total RPE value to a descriptive health label.
+ * Maps a total RPE value to a descriptive health label, adjusted by company size.
  *
- * Remodeling industry benchmarks (approximate):
- *   < $100k  — Needs work. Significant overhead or underperforming volume.
- *   $100–150k — Caution. Room to improve efficiency.
- *   $150–200k — Average. Typical for well-run mid-size firms.
- *   $200–280k — Good. Lean and productive.
- *   > $280k   — Strong. High-performance operation.
+ * When revenue is provided, thresholds are selected from the matching tier.
+ * When omitted, defaults to the "growth" tier for backwards-compatibility.
  */
-export function getRPEBenchmark(totalRPE: number): RPEBenchmark {
+export function getRPEBenchmark(totalRPE: number, revenue?: number): RPEBenchmark {
   if (totalRPE <= 0) {
     return { label: "—", description: "Enter revenue and headcount to see your benchmark.", variant: "caution" };
   }
-  if (totalRPE < 100_000) {
-    return { label: "Needs Work", description: "RPE is below typical industry floor. Worth a close look at overhead and volume.", variant: "critical" };
+
+  const tierInfo = revenue != null && revenue > 0 ? getRevenueTier(revenue) : { tier: "growth" as RevenueTier, label: "Growth", rangeLabel: "$2M – $5M" };
+  const t = TIER_THRESHOLDS[tierInfo.tier];
+  const ctx = `for ${tierInfo.rangeLabel} firms`;
+
+  if (totalRPE < t.critical) {
+    return { label: "Needs Work", description: `RPE is below the floor ${ctx}. Worth a close look at overhead and volume.`, variant: "critical" };
   }
-  if (totalRPE < 150_000) {
-    return { label: "Below Average", description: "There is likely room to tighten overhead or grow top-line revenue.", variant: "caution" };
+  if (totalRPE < t.caution) {
+    return { label: "Below Average", description: `There is likely room to tighten overhead or grow top-line revenue ${ctx}.`, variant: "caution" };
   }
-  if (totalRPE < 200_000) {
-    return { label: "Average", description: "Typical for a well-run mid-size remodeling firm.", variant: "average" };
+  if (totalRPE < t.average) {
+    return { label: "Average", description: `Typical for a well-run remodeling firm ${ctx}.`, variant: "average" };
   }
-  if (totalRPE < 280_000) {
-    return { label: "Good", description: "Lean and productive. The team is carrying healthy volume.", variant: "good" };
+  if (totalRPE < t.good) {
+    return { label: "Good", description: `Lean and productive ${ctx}. The team is carrying healthy volume.`, variant: "good" };
   }
-  return { label: "Strong", description: "High-performance operation. Protect this by managing growth carefully.", variant: "strong" };
+  return { label: "Strong", description: `High-performance operation ${ctx}. Protect this by managing growth carefully.`, variant: "strong" };
 }
