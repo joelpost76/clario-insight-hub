@@ -58,3 +58,25 @@ export interface RPEBenchmark {
   description: string;
   variant: "critical" | "caution" | "average" | "good" | "strong";
 }
+
+// ─── Revenue-Tiered Benchmarks ───────────────────────────────────────────────
+
+export type RevenueTier = "emerging" | "growth" | "established" | "enterprise";
+
+export interface TierThresholds {
+  /** Upper bound for "critical" band */
+  critical: number;
+  /** Upper bound for "caution" band */
+  caution: number;
+  /** Upper bound for "average" band */
+  average: number;
+  /** Upper bound for "good" band */
+  good: number;
+  // Anything above `good` is "strong"
+}
+
+export interface RevenueTierInfo {
+  tier: RevenueTier;
+  label: string;
+  rangeLabel: string;
+}
