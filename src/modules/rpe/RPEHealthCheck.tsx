@@ -131,7 +131,7 @@ function FormulaCard({
   inputs: string[];
 }) {
   return (
-    <div className="rounded-lg border bg-muted/30 p-3.5 space-y-2">
+    <div className="rounded-lg border bg-card p-3.5 space-y-2">
       <p className="text-sm font-semibold text-foreground">{title}</p>
       <code className="block text-xs font-mono bg-background rounded px-2 py-1.5 text-foreground border">
         {formula}
@@ -141,7 +141,7 @@ function FormulaCard({
         {inputs.map((input) => (
           <span
             key={input}
-            className="inline-block text-[10px] bg-primary/10 text-primary rounded px-1.5 py-0.5 font-medium"
+            className="inline-block text-[10px] bg-muted text-muted-foreground border border-border rounded px-1.5 py-0.5 font-medium"
           >
             {input}
           </span>
@@ -381,7 +381,7 @@ export default function RPEHealthCheck() {
               <CardContent className="pt-0 pb-6 space-y-6">
                 <Separator />
                 <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary RPE Metrics</h3>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pb-1 border-b">Primary RPE Metrics</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormulaCard title="Total RPE" formula="Revenue ÷ Total FTE" description="The headline number. Total FTE = Field FTE + Non-Field FTE." inputs={["Annual Revenue", "Field FTE", "Non-Field FTE"]} />
                     <FormulaCard title="Field RPE" formula="Revenue ÷ Field FTE" description="Revenue generated per billable, project-facing employee." inputs={["Annual Revenue", "Field FTE"]} />
@@ -389,7 +389,7 @@ export default function RPEHealthCheck() {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Volume &amp; Workload Metrics</h3>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pb-1 border-b">Volume &amp; Workload Metrics</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormulaCard title="Jobs per Year" formula="Revenue ÷ Avg Contract Value" description="Estimated annual project throughput." inputs={["Annual Revenue", "Avg Contract Value"]} />
                     <FormulaCard title="Implied WIP" formula="(Jobs/Year ÷ 52) × 12" description="Approximate projects in flight at any time, assuming a 12-week duration." inputs={["Annual Revenue", "Avg Contract Value"]} />
@@ -397,7 +397,7 @@ export default function RPEHealthCheck() {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Role Workload Indicators</h3>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide pb-1 border-b">Role Workload Indicators</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     These do <strong>not</strong> change RPE. They show how many jobs each role is carrying, helping spot overload before it becomes a quality or retention problem.
                   </p>
