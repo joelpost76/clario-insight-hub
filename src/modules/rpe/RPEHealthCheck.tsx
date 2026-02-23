@@ -365,6 +365,57 @@ export default function RPEHealthCheck() {
           </Button>
         </div>
 
+        {/* ── How RPE is Calculated ──────────────────────────────────────── */}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <button className="flex w-full items-center justify-between px-6 py-4 text-left group">
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-foreground">How RPE is Calculated</span>
+                </div>
+                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 pb-6 space-y-6">
+                <Separator />
+                <div className="space-y-3">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary RPE Metrics</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormulaCard title="Total RPE" formula="Revenue ÷ Total FTE" description="The headline number. Total FTE = Field FTE + Non-Field FTE." inputs={["Annual Revenue", "Field FTE", "Non-Field FTE"]} />
+                    <FormulaCard title="Field RPE" formula="Revenue ÷ Field FTE" description="Revenue generated per billable, project-facing employee." inputs={["Annual Revenue", "Field FTE"]} />
+                    <FormulaCard title="Non-Field RPE" formula="Revenue ÷ Non-Field FTE" description="Revenue supported per overhead / admin role." inputs={["Annual Revenue", "Non-Field FTE"]} />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Volume &amp; Workload Metrics</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormulaCard title="Jobs per Year" formula="Revenue ÷ Avg Contract Value" description="Estimated annual project throughput." inputs={["Annual Revenue", "Avg Contract Value"]} />
+                    <FormulaCard title="Implied WIP" formula="(Jobs/Year ÷ 52) × 12" description="Approximate projects in flight at any time, assuming a 12-week duration." inputs={["Annual Revenue", "Avg Contract Value"]} />
+                    <FormulaCard title="Backlog Months" formula="Backlog ÷ (Revenue ÷ 12)" description="How many months of revenue the current backlog represents." inputs={["Current Backlog", "Annual Revenue"]} />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Role Workload Indicators</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    These do <strong>not</strong> change RPE. They show how many jobs each role is carrying, helping spot overload before it becomes a quality or retention problem.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormulaCard title="Jobs per PM" formula="Jobs/Year ÷ PM Count" description="Workload concentration for project managers." inputs={["Avg Contract Value", "PM Count"]} />
+                    <FormulaCard title="Jobs per Designer" formula="Jobs/Year ÷ Designer Count" description="Workload concentration for designers." inputs={["Avg Contract Value", "Designer Count"]} />
+                    <FormulaCard title="Jobs per Sales Rep" formula="Jobs/Year ÷ Sales Count" description="Workload concentration for sales reps." inputs={["Avg Contract Value", "Sales Count"]} />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  All calculations use the <Badge variant="outline" className="text-[10px] px-1.5 py-0 mx-0.5">{CURRENT_RPE_VERSION}</Badge> engine.
+                  Saved snapshots are permanently tied to the version used at capture time so historical comparisons stay consistent.
+                </p>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
 
           {/* ── Left: Inputs ─────────────────────────────────────────────── */}
@@ -856,115 +907,6 @@ export default function RPEHealthCheck() {
           </div>
         </div>
 
-        {/* ── How RPE is Calculated ──────────────────────────────────────── */}
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <button className="flex w-full items-center justify-between px-6 py-4 text-left group">
-                <div className="flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold text-foreground">How RPE is Calculated</span>
-                </div>
-                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0 pb-6 space-y-6">
-                <Separator />
-
-                {/* Primary RPE */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Primary RPE Metrics
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormulaCard
-                      title="Total RPE"
-                      formula="Revenue ÷ Total FTE"
-                      description="The headline number. Total FTE = Field FTE + Non-Field FTE."
-                      inputs={["Annual Revenue", "Field FTE", "Non-Field FTE"]}
-                    />
-                    <FormulaCard
-                      title="Field RPE"
-                      formula="Revenue ÷ Field FTE"
-                      description="Revenue generated per billable, project-facing employee."
-                      inputs={["Annual Revenue", "Field FTE"]}
-                    />
-                    <FormulaCard
-                      title="Non-Field RPE"
-                      formula="Revenue ÷ Non-Field FTE"
-                      description="Revenue supported per overhead / admin role."
-                      inputs={["Annual Revenue", "Non-Field FTE"]}
-                    />
-                  </div>
-                </div>
-
-                {/* Secondary metrics */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Volume &amp; Workload Metrics
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormulaCard
-                      title="Jobs per Year"
-                      formula="Revenue ÷ Avg Contract Value"
-                      description="Estimated annual project throughput."
-                      inputs={["Annual Revenue", "Avg Contract Value"]}
-                    />
-                    <FormulaCard
-                      title="Implied WIP"
-                      formula="(Jobs/Year ÷ 52) × 12"
-                      description="Approximate projects in flight at any time, assuming a 12-week duration."
-                      inputs={["Annual Revenue", "Avg Contract Value"]}
-                    />
-                    <FormulaCard
-                      title="Backlog Months"
-                      formula="Backlog ÷ (Revenue ÷ 12)"
-                      description="How many months of revenue the current backlog represents."
-                      inputs={["Current Backlog", "Annual Revenue"]}
-                    />
-                  </div>
-                </div>
-
-                {/* Role load */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Role Workload Indicators
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    These do <strong>not</strong> change RPE. They show how many jobs each role is
-                    carrying, helping spot overload before it becomes a quality or retention problem.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormulaCard
-                      title="Jobs per PM"
-                      formula="Jobs/Year ÷ PM Count"
-                      description="Workload concentration for project managers."
-                      inputs={["Avg Contract Value", "PM Count"]}
-                    />
-                    <FormulaCard
-                      title="Jobs per Designer"
-                      formula="Jobs/Year ÷ Designer Count"
-                      description="Workload concentration for designers."
-                      inputs={["Avg Contract Value", "Designer Count"]}
-                    />
-                    <FormulaCard
-                      title="Jobs per Sales Rep"
-                      formula="Jobs/Year ÷ Sales Count"
-                      description="Workload concentration for sales reps."
-                      inputs={["Avg Contract Value", "Sales Count"]}
-                    />
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  All calculations use the <Badge variant="outline" className="text-[10px] px-1.5 py-0 mx-0.5">{CURRENT_RPE_VERSION}</Badge> engine.
-                  Saved snapshots are permanently tied to the version used at capture time so historical comparisons stay consistent.
-                </p>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
 
       </div>
     </AppLayout>
