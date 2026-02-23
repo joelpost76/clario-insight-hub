@@ -50,7 +50,7 @@ export function RPEGauge({ value, max = 400_000, benchmark }: RPEGaugeProps) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <svg viewBox="0 0 220 130" className="w-56 h-auto" aria-label={`RPE gauge: ${benchmark.label}`}>
+      <svg viewBox="0 0 220 140" className="w-56 h-auto" aria-label={`RPE gauge: ${benchmark.label}`}>
         {/* Track */}
         <path
           d={trackPath}
