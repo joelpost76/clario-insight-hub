@@ -1,23 +1,25 @@
 
-## Show Company Name on the RPE Health Check Page
+
+## Fix: RPE Assessment 404 When Opened from Client Widget
 
 ### Problem
-The RPE page header shows "RPE Health Check" with version and tier badges, but there's no indication of **which company** the data belongs to. Users managing multiple workspaces have no context for whose numbers they're looking at.
+When clicking the RPE Assessment tile on a client widget in the dashboard, the app navigates to `/rpe/{clientId}` (line 669 of `Dashboard.tsx`). However, the router in `App.tsx` only defines a route for `/rpe` -- there is no `/rpe/:clientId` route. This causes a 404.
 
 ### Solution
-Pull the workspace's `account_name` (company name) from the existing `WorkspaceContext` and display it prominently in the page header, just above or inline with the title.
+Add a new route `/rpe/:clientId` in `App.tsx` that renders the same `RPEHealthCheck` component. The RPE Health Check component can then read the `clientId` param to scope its data to that specific client (similar to how the Scope Creep module works with `/scope-creep/:clientId`).
 
-### Changes (1 file)
+### Changes
 
-**`src/modules/rpe/RPEHealthCheck.tsx`**
+**1. `src/App.tsx`**
+- Add a new route: `/rpe/:clientId` pointing to `RPEHealthCheck`, wrapped in `RequireWorkspace`
+- Keep the existing `/rpe` route as-is (for the summary card's "View Details" link)
 
-1. Update the destructured workspace context from `{ workspaceId }` to `{ workspaceId, workspace }` (line 157)
-2. Add the company name above the "RPE Health Check" title as a small breadcrumb-style label:
-   ```
-   [Company Name]          <- new: small muted text showing account_name
-   RPE Health Check  rpe_v1  Benchmarked for: $2M-$5M firms
-   ```
-   This will be a `<p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">` showing `workspace?.account_name` or the workspace name as a fallback.
+**2. `src/modules/rpe/RPEHealthCheck.tsx`**
+- Import `useParams` from `react-router-dom`
+- Read the optional `clientId` param: `const { clientId } = useParams()`
+- Use `clientId` (when present) to filter saved state and snapshots to that specific client, rather than loading workspace-wide data
+- This ensures the RPE Health Check shows data scoped to the correct client when accessed from the client widget
 
-### No database, dependency, or structural changes needed
-The `account_name` field is already loaded by the WorkspaceContext -- we just need to display it.
+### No database changes required
+The `clientId` parameter is used for filtering existing data -- no new tables or columns are needed.
+
