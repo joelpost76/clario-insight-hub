@@ -5,7 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientModules, ClientModule, ModuleId } from "@/hooks/useClientModules";
-import { toast } from "sonner";
+
 import {
   Select,
   SelectContent,
@@ -151,13 +151,11 @@ function ClientCard({
   client,
   modules,
   healthScore,
-  isSelected,
   onClick,
 }: {
   client: Client;
   modules: ClientModule[];
   healthScore: number | null;
-  isSelected: boolean;
   onClick: () => void;
 }) {
   const completedCount = modules.filter((m) => m.status === "complete").length;
@@ -179,19 +177,16 @@ function ClientCard({
       onClick={onClick}
       style={{
         background: "#FFFFFF",
-        border: isSelected ? "1.5px solid #4A5C3A" : "1.5px solid #EEF0EC",
+        border: "1.5px solid #EEF0EC",
         borderRadius: 16,
         padding: "24px",
         cursor: "pointer",
         transition: "all 0.2s ease",
-        boxShadow: isSelected ? "0 0 0 4px rgba(74,92,58,0.08), 0 4px 24px rgba(0,0,0,0.06)" : "0 1px 4px rgba(0,0,0,0.04)",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      {isSelected && (
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, #4A5C3A, #7A9A64)", borderRadius: "16px 16px 0 0" }}/>
-      )}
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
@@ -251,170 +246,7 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string 
   );
 }
 
-// ─── Detail Panel ─────────────────────────────────────────────────────────────
-function DetailPanel({
-  client,
-  modules,
-  healthScore,
-  onRun,
-}: {
-  client: Client;
-  modules: ClientModule[];
-  healthScore: number | null;
-  onRun: (mod: ClientModule) => void;
-}) {
-  const availableNext = modules.find((m) => m.status === "available" || m.status === "in_progress");
-  const recentActivity = modules
-    .filter((m) => m.date && (m.status === "complete" || m.status === "in_progress"))
-    .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime());
 
-  return (
-    <div style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 16, overflow: "hidden", position: "sticky", top: 80 }}>
-      {/* Header */}
-      <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #F0F2EE" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1A2018", letterSpacing: "-0.3px", fontFamily: "'DM Sans', sans-serif" }}>
-            {client.name}
-          </h2>
-          <HealthRing score={healthScore} size={40} />
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          {client.industry && (
-            <span style={{ fontSize: 11, background: "#F0F4EE", color: "#4A5C3A", padding: "2px 8px", borderRadius: 20, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
-              {client.industry}
-            </span>
-          )}
-          <span style={{ fontSize: 11, color: "#9CA89A", fontFamily: "'DM Mono', monospace" }}>
-            {[client.revenue_range, client.headcount ? `${client.headcount} emp.` : null].filter(Boolean).join(" · ")}
-          </span>
-        </div>
-      </div>
-
-      {/* Module list */}
-      <div style={{ padding: "16px 24px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA89A", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>
-          Diagnostic Modules
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {modules.map((mod) => {
-            const isLocked = mod.status === "locked";
-            const isComplete = mod.status === "complete";
-            const isProgress = mod.status === "in_progress";
-            const isAvailable = mod.status === "available";
-            return (
-              <div
-                key={mod.id}
-                className="module-row"
-                style={{
-                  display: "flex", alignItems: "center", gap: 12,
-                  padding: "10px 12px",
-                  borderRadius: 9,
-                  background: isProgress ? "#FAFDF8" : "transparent",
-                  border: isProgress ? "1px solid #DCE8D4" : "1px solid transparent",
-                  opacity: isLocked ? 0.45 : 1,
-                  cursor: isLocked ? "default" : "pointer",
-                  transition: "all 0.15s",
-                }}
-                onClick={() => !isLocked && onRun(mod)}
-              >
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8,
-                  background: isComplete ? "#F0F4EE" : isProgress ? "#EAF2E4" : "#F5F5F5",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: isComplete || isProgress ? "#4A5C3A" : "#CBD5C8",
-                  flexShrink: 0,
-                }}>
-                  {moduleIcons[mod.id]}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isLocked ? "#B8BDB6" : "#1A2018", marginBottom: 2, fontFamily: "'DM Sans', sans-serif" }}>
-                    {mod.name}
-                  </div>
-                  <div style={{
-                    fontSize: 11,
-                    color: isComplete ? "#4A5C3A" : isProgress ? "#4A5C3A" : "#B8BDB6",
-                    fontFamily: isComplete ? "'DM Mono', monospace" : "'DM Sans', sans-serif",
-                    fontWeight: isProgress ? 600 : 400,
-                  }}>
-                    {isComplete
-                      ? `Score: ${mod.score != null ? Math.round(mod.score) : "—"}${mod.scoreLabel ? ` · ${mod.scoreLabel}` : ""}`
-                      : isProgress
-                      ? (mod.scoreLabel || "In progress")
-                      : isAvailable
-                      ? "Ready to run"
-                      : "Locked"}
-                  </div>
-                </div>
-                {isComplete && (
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <circle cx="7" cy="7" r="6" fill="#4A5C3A"/>
-                    <path d="M4 7l2.5 2.5L10 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-                {isProgress && (
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4A5C3A", animation: "pulse 2s infinite", flexShrink: 0 }}/>
-                )}
-                {isAvailable && (
-                  <button
-                    className="run-btn"
-                    onClick={(e) => { e.stopPropagation(); onRun(mod); }}
-                    style={{ padding: "4px 10px", border: "1.5px solid #4A5C3A", borderRadius: 6, background: "transparent", color: "#4A5C3A", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
-                    Run →
-                  </button>
-                )}
-                {isProgress && (
-                  <button
-                    className="run-btn"
-                    onClick={(e) => { e.stopPropagation(); onRun(mod); }}
-                    style={{ padding: "4px 10px", border: "1.5px solid #4A5C3A", borderRadius: 6, background: "transparent", color: "#4A5C3A", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" as const }}>
-                    Resume →
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Recommended next */}
-      {availableNext && (
-        <div style={{ margin: "0 24px 16px", background: "#F7FAF5", border: "1px solid #DCE8D4", borderRadius: 10, padding: "14px 16px" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#4A5C3A", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6, fontFamily: "'DM Sans', sans-serif" }}>
-            Recommended Next
-          </div>
-          <div style={{ fontSize: 13, color: "#1A2018", fontWeight: 500, marginBottom: 4, fontFamily: "'DM Sans', sans-serif" }}>
-            {availableNext.name}
-          </div>
-          <div style={{ fontSize: 11, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
-            Based on current diagnostic gaps{client.industry ? ` and industry benchmarks for ${client.industry.toLowerCase()} companies` : ""}.
-          </div>
-        </div>
-      )}
-
-      {/* Recent activity */}
-      <div style={{ borderTop: "1px solid #F0F2EE", padding: "16px 24px 20px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA89A", letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 12, fontFamily: "'DM Sans', sans-serif" }}>
-          Recent Activity
-        </div>
-        {recentActivity.length === 0 ? (
-          <div style={{ fontSize: 12, color: "#B8BDB6", fontFamily: "'DM Sans', sans-serif" }}>No activity yet</div>
-        ) : (
-          recentActivity.slice(0, 3).map((m, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: m.status === "complete" ? "#4A5C3A" : "#B8A94A", flexShrink: 0 }}/>
-              <span style={{ fontSize: 12, color: "#4A5048", flex: 1, fontFamily: "'DM Sans', sans-serif" }}>
-                {m.name} {m.status === "complete" ? "completed" : "in progress"}
-              </span>
-              <span style={{ fontSize: 11, color: "#B8BDB6", fontFamily: "'DM Mono', monospace" }}>
-                {new Date(m.date!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Add Client Modal ─────────────────────────────────────────────────────────
 function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: string; onClose: () => void; onSuccess: (id: string) => void }) {
@@ -545,12 +377,10 @@ function AddClientModal({ workspaceId, onClose, onSuccess }: { workspaceId: stri
 // ─── ClientRow: fetches modules + derives health score ────────────────────────
 function ClientRow({
   client,
-  selectedId,
-  onSelect,
+  onClick,
 }: {
   client: Client;
-  selectedId: string | null;
-  onSelect: (id: string, modules: ClientModule[], health: number | null) => void;
+  onClick: () => void;
 }) {
   const { data: modules = [] } = useClientModules(client.id);
   const healthScore = useMemo(() => {
@@ -563,8 +393,7 @@ function ClientRow({
       client={client}
       modules={modules}
       healthScore={healthScore}
-      isSelected={client.id === selectedId}
-      onClick={() => onSelect(client.id, modules, healthScore)}
+      onClick={onClick}
     />
   );
 }
@@ -626,9 +455,6 @@ export default function Dashboard() {
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "needs_attention">("all");
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [selectedModules, setSelectedModules] = useState<ClientModule[]>([]);
-  const [selectedHealth, setSelectedHealth] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
@@ -648,31 +474,10 @@ export default function Dashboard() {
 
   const { data: stats } = useHubStats(workspaceId);
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
-
   const filtered = useMemo(() => clients.filter((c) => {
     if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }), [clients, search]);
-
-  const handleSelect = (id: string, modules: ClientModule[], health: number | null) => {
-    setSelectedClientId(id);
-    setSelectedModules(modules);
-    setSelectedHealth(health);
-  };
-
-  // Navigation per module/status table
-  const handleRun = (mod: ClientModule) => {
-    if (!selectedClientId) return;
-    if (mod.id === "rpe") {
-      // RPEInit handles create-or-resume logic
-      navigate(`/rpe/${selectedClientId}`);
-    } else if (mod.id === "scope") {
-      navigate(`/scope-creep/${selectedClientId}`);
-    } else {
-      toast(`${mod.name} — Coming Soon`, { description: "This module will be available in the next release." });
-    }
-  };
 
   return (
     <AppLayout>
@@ -755,85 +560,70 @@ export default function Dashboard() {
         )}
 
         {/* Main content */}
-        <div style={{ display: "grid", gridTemplateColumns: selectedClient ? "1fr 380px" : "1fr", gap: 20, alignItems: "start" }}>
-
-          {/* Left — client list */}
-          <div>
-            {/* Search + filter */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-              <div style={{ flex: 1, position: "relative" }}>
-                <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA89A" }} width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M9.5 9.5l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search clients..."
-                  style={{ width: "100%", padding: "9px 12px 9px 34px", border: "1.5px solid #EEF0EC", borderRadius: 9, fontSize: 13, color: "#1A2018", background: "#FFFFFF", outline: "none", fontFamily: "'DM Sans', sans-serif" }}
-                />
-              </div>
-              <div style={{ display: "flex", gap: 4, background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 9, padding: 4 }}>
-                {([["all", "All"], ["active", "Active"], ["needs_attention", "Needs Attention"]] as const).map(([val, lbl]) => (
-                  <button
-                    key={val}
-                    className="filter-btn"
-                    onClick={() => setFilter(val)}
-                    style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: filter === val ? "#F0F4EE" : "transparent", color: filter === val ? "#4A5C3A" : "#6B7A67", fontSize: 12, fontWeight: filter === val ? 600 : 400, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
-                  >
-                    {lbl}
-                  </button>
-                ))}
-              </div>
+        <div>
+          {/* Search + filter */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+            <div style={{ flex: 1, position: "relative" }}>
+              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA89A" }} width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M9.5 9.5l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search clients..."
+                style={{ width: "100%", padding: "9px 12px 9px 34px", border: "1.5px solid #EEF0EC", borderRadius: 9, fontSize: 13, color: "#1A2018", background: "#FFFFFF", outline: "none", fontFamily: "'DM Sans', sans-serif" }}
+              />
             </div>
-
-            {/* Client cards — 2-column grid */}
-            {isLoading ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {[1, 2].map((i) => (
-                  <div key={i} style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 16, height: 220, opacity: 0.5 }}/>
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div style={{ background: "#FFFFFF", border: "2px dashed #EEF0EC", borderRadius: 16, padding: "60px 24px", textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 16 }}>👥</div>
-                <h3 style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 18, color: "#1A2018", margin: "0 0 8px" }}>
-                  {search ? "No clients match" : "No clients yet"}
-                </h3>
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#6B7A67", margin: "0 0 24px" }}>
-                  {search ? "Try a different search term" : "Add your first client to begin the Clario™ diagnostic"}
-                </p>
-                {!search && (
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    style={{ padding: "10px 24px", background: "#4A5C3A", color: "white", border: "none", borderRadius: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
-                  >
-                    Add First Client
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {filtered.map((client) => (
-                  <ClientRow
-                    key={client.id}
-                    client={client}
-                    selectedId={selectedClientId}
-                    onSelect={handleSelect}
-                  />
-                ))}
-              </div>
-            )}
+            <div style={{ display: "flex", gap: 4, background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 9, padding: 4 }}>
+              {([["all", "All"], ["active", "Active"], ["needs_attention", "Needs Attention"]] as const).map(([val, lbl]) => (
+                <button
+                  key={val}
+                  className="filter-btn"
+                  onClick={() => setFilter(val)}
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: filter === val ? "#F0F4EE" : "transparent", color: filter === val ? "#4A5C3A" : "#6B7A67", fontSize: 12, fontWeight: filter === val ? 600 : 400, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", transition: "all 0.1s" }}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Right — detail panel */}
-          {selectedClient && (
-            <DetailPanel
-              client={selectedClient}
-              modules={selectedModules}
-              healthScore={selectedHealth}
-              onRun={handleRun}
-            />
+          {/* Client cards — 3-column grid */}
+          {isLoading ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} style={{ background: "#FFFFFF", border: "1.5px solid #EEF0EC", borderRadius: 16, height: 220, opacity: 0.5 }}/>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ background: "#FFFFFF", border: "2px dashed #EEF0EC", borderRadius: 16, padding: "60px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>👥</div>
+              <h3 style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 18, color: "#1A2018", margin: "0 0 8px" }}>
+                {search ? "No clients match" : "No clients yet"}
+              </h3>
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#6B7A67", margin: "0 0 24px" }}>
+                {search ? "Try a different search term" : "Add your first client to begin the Clario™ diagnostic"}
+              </p>
+              {!search && (
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  style={{ padding: "10px 24px", background: "#4A5C3A", color: "white", border: "none", borderRadius: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+                >
+                  Add First Client
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {filtered.map((client) => (
+                <ClientRow
+                  key={client.id}
+                  client={client}
+                  onClick={() => navigate(`/client/${client.id}`)}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -844,8 +634,7 @@ export default function Dashboard() {
           onClose={() => setShowAddModal(false)}
           onSuccess={(id) => {
             setShowAddModal(false);
-            // Select the new client on the hub — consultant picks module from detail panel
-            setSelectedClientId(id);
+            navigate(`/client/${id}`);
           }}
         />
       )}
