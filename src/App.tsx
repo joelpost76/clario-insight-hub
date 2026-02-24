@@ -27,6 +27,7 @@ import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
 import NoWorkspace from "./pages/NoWorkspace";
 import NotFound from "./pages/NotFound";
+import ClientHub from "./pages/ClientHub";
 // RPE Health Check
 import RPEHealthCheck from "./modules/rpe/RPEHealthCheck";
 // Scope Creep module
@@ -171,6 +172,15 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <Welcome />
+                </RequireWorkspace>
+              }
+            />
+            {/* ── Client Hub ────────────────────────────────────────── */}
+            <Route
+              path="/client/:clientId"
+              element={
+                <RequireWorkspace>
+                  <ClientHub />
                 </RequireWorkspace>
               }
             />
