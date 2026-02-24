@@ -98,52 +98,60 @@ Deno.serve(async (req) => {
     );
 
     if (existingUser) {
-      // User already exists - check if already a member
-      const { data: existingMember } = await adminClient
-        .from("workspace_members")
-        .select("id")
-        .eq("workspace_id", workspace_id)
-        .eq("user_id", existingUser.id)
-        .maybeSingle();
+      // Check if the user has actually confirmed their email (i.e. they clicked the link and signed in)
+      const isConfirmed = !!existingUser.email_confirmed_at;
 
-      if (existingMember) {
+      if (isConfirmed) {
+        // Fully confirmed user - check if already a member
+        const { data: existingMember } = await adminClient
+          .from("workspace_members")
+          .select("id")
+          .eq("workspace_id", workspace_id)
+          .eq("user_id", existingUser.id)
+          .maybeSingle();
+
+        if (existingMember) {
+          return new Response(
+            JSON.stringify({ error: "User is already a member of this workspace" }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Add confirmed user directly to workspace
+        const { error: memberError } = await adminClient
+          .from("workspace_members")
+          .insert({ workspace_id, user_id: existingUser.id });
+
+        if (memberError) {
+          console.error("Error adding member:", memberError.message);
+          return new Response(
+            JSON.stringify({ error: "Failed to add member to workspace" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Assign role if not already assigned
+        await adminClient
+          .from("user_roles")
+          .upsert(
+            { user_id: existingUser.id, role: assignRole },
+            { onConflict: "user_id,role" }
+          );
+
+        console.log(`Existing confirmed user ${normalizedEmail} added to workspace directly`);
+
         return new Response(
-          JSON.stringify({ error: "User is already a member of this workspace" }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({
+            status: "added",
+            message: `${normalizedEmail} has been added to the workspace.`,
+            user_id: existingUser.id,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Add existing user directly to workspace
-      const { error: memberError } = await adminClient
-        .from("workspace_members")
-        .insert({ workspace_id, user_id: existingUser.id });
-
-      if (memberError) {
-        console.error("Error adding member:", memberError.message);
-        return new Response(
-          JSON.stringify({ error: "Failed to add member to workspace" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Assign role if not already assigned
-      await adminClient
-        .from("user_roles")
-        .upsert(
-          { user_id: existingUser.id, role: assignRole },
-          { onConflict: "user_id,role" }
-        );
-
-      console.log(`Existing user ${normalizedEmail} added to workspace directly`);
-
-      return new Response(
-        JSON.stringify({
-          status: "added",
-          message: `${normalizedEmail} has been added to the workspace.`,
-          user_id: existingUser.id,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // User exists in auth but hasn't confirmed — treat as a resend/new invite
+      console.log(`User ${normalizedEmail} exists but unconfirmed — resending invite`);
     }
 
     // User doesn't exist - create invitation record
