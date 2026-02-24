@@ -154,7 +154,7 @@ function FormulaCard({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function RPEHealthCheck() {
-  const { workspaceId } = useWorkspace();
+  const { workspaceId, workspace } = useWorkspace();
   const { toast } = useToast();
   const [inputs, setInputs] = useState<RPEInputs>(DEFAULTS);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -332,6 +332,11 @@ export default function RPEHealthCheck() {
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="space-y-1.5">
+            {workspace?.account_name && (
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                {workspace.account_name}
+              </p>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 RPE Health Check
