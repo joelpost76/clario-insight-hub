@@ -1,83 +1,104 @@
 
 
-## Improve Client Navigation UX: Add a Dedicated Client Page
+## Fix: Invitation Status and "Add Existing Member" Flow
 
-### Problems Identified
+### Root Cause
 
-1. **No dedicated client page** -- Clicking a client card only opens a sticky side panel on the dashboard. There's no full-page view for a client where you can see all their details, run modules, and manage their data in one place.
+The `handle_new_user` database trigger fires when `inviteUserByEmail()` creates the user in the auth system. This happens **immediately at invite time**, not when the user actually accepts. The trigger then:
+1. Marks the invitation as "Accepted" (premature)
+2. Adds the user to `workspace_members` (premature)
+3. Assigns the role (premature)
 
-2. **No bridge from Admin to a client** -- The Admin page manages accounts, workspaces, and members, but there's no way to jump from Admin into a specific client's diagnostic view. Your message got cut off, but this is the gap: the Admin has "Enter Workspace" but no "View Client" action.
+This means:
+- The invitation incorrectly shows "Accepted" in the Admin UI
+- "Add Existing Member" fails because they're already in `workspace_members`
+- The user never actually set a password or logged in
 
-3. **Side panel feels like a dead end** -- The detail panel shows modules and recent activity, but it's cramped and doesn't invite deeper exploration. Clicking a client should feel like you're "entering" that client's space.
+There's also a secondary bug: the invite email's redirect URL is built incorrectly from the backend URL instead of the actual app URL.
 
-### Proposed Solution
+### Solution
 
-Create a dedicated **Client Hub Page** at `/client/:clientId` that serves as the single landing page for any client. The dashboard card and Admin interface both link here.
+**1. Update `handle_new_user` trigger function (database migration)**
 
-```text
-Dashboard (card grid)                Admin (workspace table)
-     |                                    |
-     |  click card                        |  "View Client" button
-     v                                    v
-  /client/:clientId  <--------------------+
-  +---------------------------------------+
-  | [Back to Dashboard]                   |
-  |                                       |
-  | Harlow Design + Build        [63]     |
-  | Design-Build . $2M-$5M . 15 emp.     |
-  |                                       |
-  | --- Diagnostic Modules -----------    |
-  | | RPE Assessment    | Score: 63  |    |
-  | | Scope Creep       | Run ->     |    |
-  | | P&L Margin        | Run ->     |    |
-  | | Cash Flow         | Locked     |    |
-  | -----------------------------------    |
-  |                                       |
-  | --- Recent Activity ---------------    |
-  | RPE completed             Feb 19      |
-  | -----------------------------------    |
-  |                                       |
-  | --- Recommended Next ---------------  |
-  | Scope Creep analysis based on...      |
-  +---------------------------------------+
+Modify the trigger to only process pending invitations when the user has actually confirmed their email (i.e., `email_confirmed_at` is set). Users created by `inviteUserByEmail` initially have `email_confirmed_at = NULL` until they click the link and set a password.
+
+```sql
+-- Only process invitations if the user has confirmed their email
+IF NEW.email_confirmed_at IS NOT NULL THEN
+  -- existing invitation processing logic
+END IF;
 ```
+
+**2. Add a second trigger for `UPDATE` on `auth.users`**
+
+When the invited user finally clicks the link and confirms, the `email_confirmed_at` field gets updated. A new trigger on UPDATE will catch this event and process the pending invitations at that point.
+
+Wait -- we cannot attach triggers to `auth.users` (reserved schema). Instead:
+
+**Revised approach:** Move invitation processing out of the trigger entirely. Instead, process pending invitations at **login time** in the application code.
+
+**3. Update the application login flow**
+
+After a user successfully authenticates (in `useAuth` or a post-login hook), check for pending invitations matching their email and process them:
+- Add them to `workspace_members`
+- Assign the invited role
+- Mark the invitation as "accepted"
+
+This is done via a new edge function `process-pending-invitations` that runs with service role privileges.
+
+**4. Fix the invite redirect URL**
+
+In the `invite-user` edge function, change the redirect URL from the broken backend-derived URL to the actual published app URL.
 
 ### Changes
 
-**1. New file: `src/pages/ClientHub.tsx`**
-- Full-page client view with:
-  - Back navigation to dashboard
-  - Client header (name, industry, revenue, headcount, health ring)
-  - Full-width module grid with run/resume actions (reuses the same `useClientModules` hook and navigation logic from Dashboard)
-  - Recommended next module section
-  - Recent activity timeline
-  - Potential future: client notes, contact info, engagement history
-- Uses `useParams()` to get `clientId`, fetches client from the `clients` table
-- Module click behavior identical to current `handleRun` in Dashboard
+**A. Database migration**
+- Update `handle_new_user()` to NOT process invitations (only create the profile and assign default role if no invitations exist). Remove the invitation-acceptance loop from this function.
 
-**2. New route in `src/App.tsx`**
-- Add `/client/:clientId` route pointing to `ClientHub`, wrapped in `RequireWorkspace`
+**B. New edge function: `supabase/functions/process-pending-invitations/index.ts`**
+- Called after login with the user's auth token
+- Looks up pending invitations matching the user's email
+- For each: inserts into `workspace_members`, assigns role, marks invitation as "accepted"
+- Uses service role to bypass RLS
 
-**3. Update `src/pages/Dashboard.tsx`**
-- Change `ClientCard` `onClick` to navigate to `/client/:clientId` instead of toggling the side panel
-- Remove the `DetailPanel` component and all side-panel state (`selectedClientId`, `selectedModules`, `selectedHealth`) -- the dashboard becomes a clean card grid
-- Keep the stats bar, search, and filters as-is
+**C. Update `src/hooks/useAuth.ts`**
+- After successful auth state change (user signs in), call the `process-pending-invitations` edge function once
+- This ensures invitations are only accepted when the user actually logs in
 
-**4. Update `src/pages/Admin.tsx`**
-- In the workspaces tab, add a way to see clients under a workspace
-- Or: after "Enter Workspace", the admin lands on the dashboard where they can click into any client
+**D. Update `supabase/functions/invite-user/index.ts`**
+- Fix redirect URL: use the published app URL (`https://clario-insight-hub.lovable.app/dashboard`) instead of the malformed backend-derived URL
+- Remove the premature workspace_member insertion for invited (non-existing) users -- the invitation record is sufficient; membership is created at login time
 
-### What This Improves
+**E. Update `supabase/config.toml`**
+- Add the new `process-pending-invitations` function config
 
-- **Clear hierarchy**: Dashboard (all clients) -> Client Hub (one client) -> Module (RPE, Scope Creep, etc.)
-- **Deep-linkable**: `/client/abc123` can be shared or bookmarked
-- **Admin flow**: Enter workspace from Admin, see client cards on dashboard, click into any client
-- **Room to grow**: The client page can later hold notes, contacts, file uploads, and engagement history without cramming the dashboard
+### Flow After Fix
 
-### Technical Details
+```text
+Admin sends invite
+  |
+  v
+invite-user edge function:
+  - User exists? -> Add to workspace directly (existing behavior, correct)
+  - User doesn't exist? -> Create invitation record + send auth invite email
+  |
+  v
+User clicks email link, sets password, logs in
+  |
+  v
+useAuth detects sign-in -> calls process-pending-invitations
+  |
+  v
+Edge function processes pending invitations:
+  - Adds user to workspace_members
+  - Assigns role
+  - Marks invitation as "accepted"
+```
 
-- The `useClientModules(clientId)` hook already exists and works with a single client ID
-- The `clients` table already has all needed fields (name, industry, revenue_range, headcount)
-- No database changes or new dependencies required
-- The health score calculation reuses the same RPE assessment query pattern from Dashboard
+### What This Fixes
+
+- Invitations will correctly show "Pending" until the user actually signs in
+- "Add Existing Member" will work for users who have confirmed their account
+- The invite email link will redirect to the correct app URL
+- No changes to the auth schema (triggers stay on public schema only)
 
