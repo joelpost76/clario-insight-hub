@@ -183,6 +183,14 @@ const App = () => (
                 </RequireWorkspace>
               }
             />
+            <Route
+              path="/rpe/:clientId"
+              element={
+                <RequireWorkspace>
+                  <RPEHealthCheck />
+                </RequireWorkspace>
+              }
+            />
             {/* ── Scope Creep Module ───────────────────────────────────── */}
             <Route
               path="/scope-creep/:clientId"
