@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
     const { data: invitedUser, error: inviteAuthError } = await adminClient.auth.admin.inviteUserByEmail(
       normalizedEmail,
       {
-        redirectTo: `${supabaseUrl.replace('.supabase.co', '.lovable.app')}/dashboard`,
+        redirectTo: 'https://clario-insight-hub.lovable.app/auth',
       }
     );
 
