@@ -244,9 +244,9 @@ export default function SIPOC() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {records.map((record) => (
-              <Card key={record.id}>
+              <Card key={record.id} className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-lg">{record.workflow_name}</CardTitle>
@@ -260,28 +260,62 @@ export default function SIPOC() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 text-sm sm:grid-cols-5">
-                    <div>
-                      <p className="font-medium text-foreground">Suppliers</p>
-                      <p className="mt-1 text-muted-foreground">{record.suppliers?.join(", ") || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Inputs</p>
-                      <p className="mt-1 text-muted-foreground">{record.inputs?.join(", ") || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Process</p>
-                      <p className="mt-1 text-muted-foreground">{record.process_steps?.join(" → ") || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Outputs</p>
-                      <p className="mt-1 text-muted-foreground">{record.outputs?.join(", ") || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Customers</p>
-                      <p className="mt-1 text-muted-foreground">{record.customers?.join(", ") || "—"}</p>
-                    </div>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-t border-border">
+                          {["Suppliers", "Inputs", "Process", "Outputs", "Customers"].map((col) => (
+                            <th
+                              key={col}
+                              className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground border-r border-border last:border-r-0"
+                            >
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t border-border align-top">
+                          {[
+                            { items: record.suppliers, isProcess: false },
+                            { items: record.inputs, isProcess: false },
+                            { items: record.process_steps, isProcess: true },
+                            { items: record.outputs, isProcess: false },
+                            { items: record.customers, isProcess: false },
+                          ].map(({ items, isProcess }, idx) => (
+                            <td
+                              key={idx}
+                              className="px-4 py-3 border-r border-border last:border-r-0"
+                            >
+                              {items && items.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {items.map((item, i) => (
+                                    <span
+                                      key={i}
+                                      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium leading-5 ${
+                                        isProcess
+                                          ? "text-white"
+                                          : "text-[#1A2018]"
+                                      }`}
+                                      style={{
+                                        backgroundColor: isProcess
+                                          ? "#6b7c3f"
+                                          : "#e8e4dc",
+                                      }}
+                                    >
+                                      {item}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
