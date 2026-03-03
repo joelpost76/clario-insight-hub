@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw, Mail, Send, Check, Clock, RefreshCw, XCircle } from "lucide-react";
+import { Plus, Trash2, Building2, FolderKanban, Users, UserPlus, Settings, ExternalLink, RotateCcw, Mail, Send, Check, Clock, RefreshCw, XCircle, BookOpen } from "lucide-react";
+import KnowledgeHub from "@/components/admin/KnowledgeHub";
 import { Badge } from "@/components/ui/badge";
 import { Account, Workspace } from "@/types/database";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -488,6 +489,10 @@ export default function Admin() {
             <TabsTrigger value="members" className="gap-2">
               <Users className="h-4 w-4" />
               Members
+            </TabsTrigger>
+            <TabsTrigger value="knowledge" className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              Knowledge Hub
             </TabsTrigger>
           </TabsList>
 
@@ -1011,6 +1016,11 @@ export default function Admin() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Knowledge Hub Tab */}
+          <TabsContent value="knowledge">
+            <KnowledgeHub />
           </TabsContent>
         </Tabs>
       </div>
