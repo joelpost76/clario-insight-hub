@@ -167,11 +167,11 @@ export default function FlowStabilization() {
           </div>
         </div>
 
-        {/* SECTION 1 – Release Gate */}
+        {/* SECTION 1 – Release Criteria */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold uppercase tracking-wider text-muted-foreground">
-              Section 1 — Release Gate
+              Section 1 — Release Criteria
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
