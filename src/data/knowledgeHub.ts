@@ -42,7 +42,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "workspaces", purpose: "Stores all kickoff scope fields (outcomes, workflows, teams, constraints, dates)" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-02-20",
   },
 
   {
@@ -56,7 +56,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "intake_responses", purpose: "Stores symptom clusters, pain ratings (JSON), TOC answers, tools list, decision bottlenecks, and current metrics" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-02-15",
   },
 
   {
@@ -77,7 +77,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "Single-pass inference with no feedback loop. Quality depends on the completeness and specificity of the intake responses. The AI may hallucinate if intake data is sparse — the `inferredDataQuality` flag helps surface this. The system prompt must be manually updated when domain logic changes.",
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-01",
   },
 
   {
@@ -97,7 +97,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "Same single-pass architecture as Constraint Analysis. No learning. Quality depends on response specificity.",
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-01-10",
   },
 
   {
@@ -117,7 +117,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "Single-pass. No learning. Slightly firmer tone than Flow Stabilization per prompt design.",
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-01-25",
   },
 
   {
@@ -131,7 +131,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "artifacts", purpose: "Stores artifact records (title, type, link_or_file, notes, tags) per workspace" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2025-12-01",
   },
 
   {
