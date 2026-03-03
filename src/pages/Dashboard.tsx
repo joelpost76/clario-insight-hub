@@ -442,8 +442,8 @@ function useHubStats(workspaceId: string | null) {
   });
 }
 
-// ─── Diagnostic Gates Card ────────────────────────────────────────────────────
-function DiagnosticGatesCard() {
+// ─── Progress Tracker Card ────────────────────────────────────────────────────
+function ProgressTrackerCard() {
   const navigate = useNavigate();
   const { completionStatus } = useWorkspace();
 
@@ -484,7 +484,7 @@ function DiagnosticGatesCard() {
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#1A2018", fontFamily: "'DM Sans', sans-serif", letterSpacing: "-0.2px" }}>
-              Diagnostic Gates
+              Progress Tracker
             </div>
             <div style={{ fontSize: 11, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
               {completed}/{gates.length} complete · {pct}%
@@ -663,8 +663,8 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Diagnostic Gates Progress */}
-        {workspaceId && <DiagnosticGatesCard />}
+        {/* Progress Tracker */}
+        {workspaceId && <ProgressTrackerCard />}
 
         {/* RPE Summary Card */}
         {workspaceId && (
