@@ -7,6 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Database, Cpu, Wrench, Shield, Puzzle, Search } from "lucide-react";
+import { Database, Cpu, Wrench, Shield, Puzzle, Search, Clock, AlertTriangle, CheckCircle } from "lucide-react";
 
 const CATEGORY_ORDER: KnowledgeCategory[] = [
   "Diagnostic Step",
@@ -130,6 +131,65 @@ function EntryCard({ entry }: { entry: KnowledgeEntry }) {
   );
 }
 
+function LastUpdatedDashboard() {
+  const now = new Date();
+  const sorted = [...knowledgeHubEntries].sort(
+    (a, b) => new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime()
+  );
+
+  const daysSince = (iso: string) => Math.floor((now.getTime() - new Date(iso).getTime()) / 86_400_000);
+
+  const stale = sorted.filter((e) => daysSince(e.lastUpdated) > 90);
+  const aging = sorted.filter((e) => { const d = daysSince(e.lastUpdated); return d > 30 && d <= 90; });
+  const fresh = sorted.filter((e) => daysSince(e.lastUpdated) <= 30);
+
+  const oldest = sorted.slice(0, 3);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card>
+        <CardContent className="pt-4 pb-4 flex items-center gap-3">
+          <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
+          <div>
+            <p className="text-2xl font-bold text-foreground">{fresh.length}</p>
+            <p className="text-xs text-muted-foreground">Updated &lt; 30 days</p>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="pt-4 pb-4 flex items-center gap-3">
+          <Clock className="h-5 w-5 text-yellow-500 shrink-0" />
+          <div>
+            <p className="text-2xl font-bold text-foreground">{aging.length}</p>
+            <p className="text-xs text-muted-foreground">30–90 days old</p>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="pt-4 pb-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+          <div>
+            <p className="text-2xl font-bold text-foreground">{stale.length}</p>
+            <p className="text-xs text-muted-foreground">Over 90 days — needs review</p>
+          </div>
+        </CardContent>
+      </Card>
+      {oldest.length > 0 && (
+        <div className="md:col-span-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Oldest entries</p>
+          <div className="flex flex-wrap gap-2">
+            {oldest.map((e) => (
+              <Badge key={e.id} variant={daysSince(e.lastUpdated) > 90 ? "destructive" : "secondary"} className="text-xs">
+                {e.moduleName} — {daysSince(e.lastUpdated)}d ago
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function KnowledgeHub() {
   const [search, setSearch] = useState("");
 
@@ -161,6 +221,8 @@ export default function KnowledgeHub() {
           This registry is the canonical source of truth — update <code className="bg-muted px-1 rounded text-xs">src/data/knowledgeHub.ts</code> when features change.
         </p>
       </div>
+
+      <LastUpdatedDashboard />
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
