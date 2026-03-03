@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Workflow as WorkflowIcon, Loader2 } from "lucide-react";
+import { Plus, Trash2, Workflow as WorkflowIcon, Loader2, ArrowRight } from "lucide-react";
 import { WorkflowMap, WorkflowStep, WorkflowHandoff, WorkflowQueue, WorkflowReworkLoop } from "@/types/database";
 
 export default function Workflow() {
@@ -404,51 +404,167 @@ export default function Workflow() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {workflows.map((workflow) => (
-              <Card key={workflow.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{workflow.workflow_name}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(workflow.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 text-sm sm:grid-cols-4">
-                    <div>
-                      <p className="font-medium text-foreground">Steps</p>
-                      <p className="mt-1 text-muted-foreground">
-                        {workflow.steps?.length ?? 0} defined
-                      </p>
+            {workflows.map((workflow) => {
+              // Build a combined sequence: steps + queues interleaved
+              const queueNames = new Set(
+                (workflow.queues ?? []).map((q) => q.where_work_waits.toLowerCase())
+              );
+              const reworkNames = new Set(
+                (workflow.rework_loops ?? []).map((r) => r.loop_name.toLowerCase())
+              );
+
+              return (
+                <Card key={workflow.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-lg">{workflow.workflow_name}</CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(workflow.id)}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">Handoffs</p>
-                      <p className="mt-1 text-muted-foreground">
-                        {workflow.handoffs?.length ?? 0} identified
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Queues</p>
-                      <p className="mt-1 text-muted-foreground">
-                        {workflow.queues?.length ?? 0} wait points
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Rework Loops</p>
-                      <p className="mt-1 text-muted-foreground">
-                        {workflow.rework_loops?.length ?? 0} loops
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    {/* Step sequence */}
+                    {(workflow.steps?.length ?? 0) > 0 && (
+                      <div className="overflow-x-auto">
+                        <div className="flex items-stretch gap-0 min-w-max">
+                          {workflow.steps!.map((step, idx) => {
+                            const isQueue = queueNames.has(step.step_name.toLowerCase());
+                            const isRework = reworkNames.has(step.step_name.toLowerCase());
+
+                            return (
+                              <div key={idx} className="flex items-center">
+                                <div
+                                  className={`rounded-md px-4 py-3 min-w-[140px] text-sm ${
+                                    isQueue
+                                      ? "bg-[#b5962e]/15 border border-[#b5962e]/30"
+                                      : isRework
+                                      ? "bg-[#fde8e8] border border-red-200"
+                                      : "bg-white border border-border border-l-[3px] border-l-[#6b7c3f]"
+                                  }`}
+                                >
+                                  <p className="font-semibold text-foreground leading-tight">
+                                    {step.step_name}
+                                  </p>
+                                  {step.owner_role && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {step.owner_role}
+                                    </p>
+                                  )}
+                                  {step.tool && (
+                                    <p className="text-xs italic text-muted-foreground/70 mt-0.5">
+                                      {step.tool}
+                                    </p>
+                                  )}
+                                </div>
+                                {idx < workflow.steps!.length - 1 && (
+                                  <ArrowRight className="h-4 w-4 mx-1.5 text-muted-foreground/50 flex-shrink-0" />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Legend */}
+                        <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <span className="inline-block w-3 h-3 rounded-sm border-l-[3px] border-l-[#6b7c3f] bg-white border border-border" />
+                            Step
+                          </span>
+                          {(workflow.queues?.length ?? 0) > 0 && (
+                            <span className="flex items-center gap-1.5">
+                              <span className="inline-block w-3 h-3 rounded-sm bg-[#b5962e]/15 border border-[#b5962e]/30" />
+                              Queue / Wait
+                            </span>
+                          )}
+                          {(workflow.rework_loops?.length ?? 0) > 0 && (
+                            <span className="flex items-center gap-1.5">
+                              <span className="inline-block w-3 h-3 rounded-sm bg-[#fde8e8] border border-red-200" />
+                              Rework
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Queues section */}
+                    {(workflow.queues?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Queues / Wait Points
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {workflow.queues!.map((q, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium bg-[#b5962e]/15 text-[#7a6820] border border-[#b5962e]/20"
+                            >
+                              {q.where_work_waits}
+                              {q.typical_delay != null && (
+                                <span className="text-[#b5962e]/70">
+                                  · {q.typical_delay}d
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Handoffs section */}
+                    {(workflow.handoffs?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Handoffs
+                        </p>
+                        <div className="space-y-1">
+                          {workflow.handoffs!.map((h, idx) => (
+                            <div key={idx} className="flex items-baseline gap-2 text-sm">
+                              <span className="font-medium text-foreground">{h.from_step}</span>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground flex-shrink-0 relative top-[1px]" />
+                              <span className="font-medium text-foreground">{h.to_step}</span>
+                              {h.missing_inputs_common && h.missing_inputs_common.length > 0 && (
+                                <span className="text-xs text-destructive/70 ml-1">
+                                  missing: {h.missing_inputs_common.join(", ")}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Rework Loops section */}
+                    {(workflow.rework_loops?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                          Rework Loops
+                        </p>
+                        <div className="space-y-1.5">
+                          {workflow.rework_loops!.map((r, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <span className="font-medium text-foreground">{r.loop_name}</span>
+                              {r.trigger && (
+                                <span className="text-muted-foreground">— {r.trigger}</span>
+                              )}
+                              {r.frequency && (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-[#fde8e8] text-red-700 border border-red-200">
+                                  {r.frequency}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 
