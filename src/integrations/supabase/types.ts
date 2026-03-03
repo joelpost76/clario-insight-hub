@@ -189,6 +189,47 @@ export type Database = {
           },
         ]
       }
+      findings: {
+        Row: {
+          confidence_level: string
+          constraint_statement: string
+          consultant_notes: string | null
+          created_at: string
+          id: string
+          recommended_service: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          confidence_level?: string
+          constraint_statement: string
+          consultant_notes?: string | null
+          created_at?: string
+          id?: string
+          recommended_service?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          confidence_level?: string
+          constraint_statement?: string
+          consultant_notes?: string | null
+          created_at?: string
+          id?: string
+          recommended_service?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "findings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flow_baselines: {
         Row: {
           ar_aging_30: number | null

@@ -43,6 +43,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     sipoc: false,
     workflow: false,
     baseline: false,
+    synthesis: false,
   });
   const navigate = useNavigate();
 
@@ -189,6 +190,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       workflowRes,
       baselineRes,
       workspaceRes,
+      findingsRes,
     ] = await Promise.all([
       supabase.from("intake_responses").select("id").eq("workspace_id", workspaceId).maybeSingle(),
       supabase.from("artifacts").select("id").eq("workspace_id", workspaceId).limit(1),
@@ -198,6 +200,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       supabase.from("workflow_maps").select("id").eq("workspace_id", workspaceId).limit(1),
       supabase.from("flow_baselines").select("wip_count, throughput_per_week, lead_time_days, rework_rate, billing_cycle_days").eq("workspace_id", workspaceId).maybeSingle(),
       supabase.from("workspaces").select("outcomes_90_day, scope_workflows").eq("id", workspaceId).maybeSingle(),
+      supabase.from("findings" as any).select("id").eq("workspace_id", workspaceId).limit(1),
     ]);
 
     // Kickoff is complete if outcomes and scope are set
@@ -229,6 +232,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       sipoc: !!(sipocRes.data && sipocRes.data.length > 0),
       workflow: !!(workflowRes.data && workflowRes.data.length > 0),
       baseline: baselineComplete,
+      synthesis: !!(findingsRes.data && (findingsRes.data as any[]).length > 0),
     });
   };
 

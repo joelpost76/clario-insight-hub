@@ -182,4 +182,5 @@ export interface CompletionStatus {
   sipoc: boolean;
   workflow: boolean;
   baseline: boolean;
+  synthesis: boolean;
 }

@@ -20,6 +20,8 @@ import {
   Layers,
   GitPullRequest,
   TrendingUp,
+  Target,
+  Presentation,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -64,6 +66,8 @@ const diagnosticSteps: NavItem[] = [
   { title: "SIPOC", url: "/sipoc", icon: GitBranch },
   { title: "Workflow", url: "/workflow", icon: Workflow },
   { title: "Flow Baseline", url: "/baseline", icon: Activity },
+  { title: "Synthesis", url: "/synthesis", icon: Target },
+  { title: "Readout", url: "/readout", icon: Presentation },
 ];
 
 interface AppSidebarProps {

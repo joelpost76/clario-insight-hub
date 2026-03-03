@@ -22,6 +22,8 @@ import Workflow from "./pages/Workflow";
 import Baseline from "./pages/Baseline";
 import FlowStabilization from "./pages/FlowStabilization";
 import ScopeDiscipline from "./pages/ScopeDiscipline";
+import Synthesis from "./pages/Synthesis";
+import Readout from "./pages/Readout";
 import Admin from "./pages/Admin";
 import AdminLeads from "./pages/AdminLeads";
 import Welcome from "./pages/Welcome";
@@ -164,6 +166,22 @@ const App = () => (
               element={
                 <RequireWorkspace>
                   <ScopeDiscipline />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/synthesis"
+              element={
+                <RequireWorkspace>
+                  <Synthesis />
+                </RequireWorkspace>
+              }
+            />
+            <Route
+              path="/readout"
+              element={
+                <RequireWorkspace>
+                  <Readout />
                 </RequireWorkspace>
               }
             />
