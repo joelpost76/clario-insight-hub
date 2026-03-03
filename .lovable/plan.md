@@ -1,39 +1,50 @@
 
 
-## Problem
+## Admin Knowledge Hub
 
-The "Enter Workspace" button on the Admin Workspaces tab calls `switchWorkspace()`, but that function (line 128 of `WorkspaceContext.tsx`) only works for workspaces in `availableWorkspaces` — which is limited to workspaces the admin is a **member** of. If the admin is not a member, clicking the button does nothing.
+### What We're Building
+A new "Knowledge Hub" tab inside the Admin Dashboard that documents how every section of Clario works, how outcomes are calculated, and what external data sources/APIs are used. Access is restricted to `unburnt_admin` users (already enforced by `RequireAdmin` on `/admin`).
 
-Additionally, even if we bypass that check, `RequireWorkspace` would redirect the admin away because `workspaceId` wouldn't be set for non-member workspaces.
+### Approach: Static Documentation Registry
 
-## Solution
+Rather than attempting true "auto-updating" documentation (which would require code introspection infrastructure), we will create a **structured documentation registry** -- a single TypeScript data file (`src/data/knowledgeHub.ts`) containing an array of documentation entries. Each entry covers a module/feature and includes:
 
-Enhance the workspace context to support an **admin override** — allowing `unburnt_admin` users to enter any workspace regardless of membership.
+- **Module name** and category (Diagnostic Step, Tool, AI Engine, Admin)
+- **Description** of what it does
+- **How outcomes are calculated** (formulas, logic, AI prompts)
+- **Data sources** (database tables, edge functions, external APIs)
+- **Last updated** timestamp
 
-### Changes
+This registry acts as a living reference. When any developer adds or modifies a feature, they update the corresponding entry in this single file -- making it the canonical source of truth.
 
-**A. `src/contexts/WorkspaceContext.tsx`**
+### Technical Details
 
-Update `switchWorkspace` to accept any workspace ID for admins:
-- If the target workspace is already in `availableWorkspaces`, use it as-is (current behavior).
-- Otherwise, if the user is an `unburnt_admin`, fetch the workspace directly from the database, set it as the active workspace, and navigate to `/dashboard`.
-- Store the admin-entered workspace in state so `RequireWorkspace` sees a valid `workspaceId`.
+**1. New file: `src/data/knowledgeHub.ts`**
 
-```text
-switchWorkspace(newWorkspaceId)
-  |
-  Is workspace in availableWorkspaces?
-  ├── Yes → set it, navigate to /dashboard (current)
-  └── No → Is user unburnt_admin?
-      ├── Yes → fetch workspace from DB, set it, navigate to /dashboard
-      └── No → do nothing (current)
-```
+A typed array of ~15 documentation entries covering:
+- Kickoff, Intake, Constraint Analysis, Flow Stabilization, Scope & Change Discipline, Artifacts, Interviews, Team Survey, SIPOC, Workflow Mapping, Flow Baseline, Synthesis, Readout
+- RPE Health Check, Scope Creep Assessment
+- AI engine details (Gemini Flash via Lovable AI gateway, single-pass prompt architecture, no learning loop)
+- Edge functions catalog (analyze-constraint, analyze-flow-stabilization, analyze-scope-discipline, create-workspace-from-lead, invite-user, lookup-user-by-email, process-pending-invitations)
 
-**B. No changes needed to `RequireWorkspace`** — it already checks `workspaceId` (which will now be set for admin-entered workspaces) and has an admin fallback path.
+Each entry will have the same depth you saw in the constraint analysis explanation: data flow, calculation logic, limitations.
 
-**C. No changes needed to `Admin.tsx`** — `handleEnterWorkspace` already calls `switchWorkspace`.
+**2. New component: `src/components/admin/KnowledgeHub.tsx`**
 
-### Summary
+An accordion-based UI that renders the registry entries grouped by category. Each expanded section shows:
+- Overview paragraph
+- "How it works" detail
+- Calculation methodology (where applicable)
+- Data sources table (tables, edge functions, APIs)
+- Last updated date
 
-Single file change to `WorkspaceContext.tsx`: make `switchWorkspace` fetch and set any workspace for admin users, not just ones they're members of.
+**3. Modified file: `src/pages/Admin.tsx`**
+
+Add a fourth tab "Knowledge Hub" (with a `BookOpen` icon) to the existing `TabsList`. The tab content renders the `KnowledgeHub` component.
+
+**4. No database or RLS changes needed** -- this is purely frontend documentation, already protected by the `RequireAdmin` route guard.
+
+### Initial Content Scope
+
+The registry will be pre-populated with detailed entries for all 15+ modules, matching the level of detail from the constraint analysis explanation (data inputs, processing pipeline, output schema, limitations, external dependencies).
 
