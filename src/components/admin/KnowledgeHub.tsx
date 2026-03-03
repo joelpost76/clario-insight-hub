@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { knowledgeHubEntries, type KnowledgeCategory, type KnowledgeEntry, type DataSource } from "@/data/knowledgeHub";
 import {
   Accordion,
@@ -14,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Database, Cpu, Wrench, Shield, Puzzle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Database, Cpu, Wrench, Shield, Puzzle, Search } from "lucide-react";
 
 const CATEGORY_ORDER: KnowledgeCategory[] = [
   "Diagnostic Step",
@@ -129,10 +131,25 @@ function EntryCard({ entry }: { entry: KnowledgeEntry }) {
 }
 
 export default function KnowledgeHub() {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return knowledgeHubEntries;
+    const q = search.toLowerCase();
+    return knowledgeHubEntries.filter(
+      (e) =>
+        e.moduleName.toLowerCase().includes(q) ||
+        e.category.toLowerCase().includes(q) ||
+        e.description.toLowerCase().includes(q) ||
+        e.howItWorks.toLowerCase().includes(q) ||
+        e.dataSources.some((ds) => ds.name.toLowerCase().includes(q))
+    );
+  }, [search]);
+
   const grouped = CATEGORY_ORDER.map((cat) => ({
     category: cat,
     icon: CATEGORY_ICONS[cat],
-    entries: knowledgeHubEntries.filter((e) => e.category === cat),
+    entries: filtered.filter((e) => e.category === cat),
   })).filter((g) => g.entries.length > 0);
 
   return (
@@ -144,6 +161,22 @@ export default function KnowledgeHub() {
           This registry is the canonical source of truth — update <code className="bg-muted px-1 rounded text-xs">src/data/knowledgeHub.ts</code> when features change.
         </p>
       </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search modules, data sources, calculations…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {grouped.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          No modules match "{search}"
+        </p>
+      )}
 
       {grouped.map((group) => (
         <div key={group.category}>
