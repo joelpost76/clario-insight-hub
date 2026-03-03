@@ -442,6 +442,120 @@ function useHubStats(workspaceId: string | null) {
   });
 }
 
+// ─── Diagnostic Gates Card ────────────────────────────────────────────────────
+function DiagnosticGatesCard() {
+  const navigate = useNavigate();
+  const { completionStatus } = useWorkspace();
+
+  const gates = [
+    { label: "Kickoff", key: "kickoff" as const, route: "/kickoff" },
+    { label: "Intake", key: "intake" as const, route: "/intake" },
+    { label: "Artifacts", key: "artifacts" as const, route: "/artifacts" },
+    { label: "Interviews", key: "interviews" as const, route: "/interviews" },
+    { label: "Survey", key: "survey" as const, route: "/survey" },
+    { label: "SIPOC", key: "sipoc" as const, route: "/sipoc" },
+    { label: "Workflow", key: "workflow" as const, route: "/workflow" },
+    { label: "Baseline", key: "baseline" as const, route: "/baseline" },
+    { label: "Synthesis", key: "synthesis" as const, route: "/synthesis" },
+  ];
+
+  const completed = gates.filter((g) => completionStatus?.[g.key]).length;
+  const pct = Math.round((completed / gates.length) * 100);
+
+  return (
+    <div style={{
+      background: "#FFFFFF",
+      border: "1.5px solid #EEF0EC",
+      borderRadius: 16,
+      padding: "20px 24px",
+      marginBottom: 16,
+    }}>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: completed === gates.length ? "#4A5C3A" : "#F0F4EE",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7.5l3 3 7-7" stroke={completed === gates.length ? "#FFFFFF" : "#4A5C3A"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1A2018", fontFamily: "'DM Sans', sans-serif", letterSpacing: "-0.2px" }}>
+              Diagnostic Gates
+            </div>
+            <div style={{ fontSize: 11, color: "#6B7A67", fontFamily: "'DM Sans', sans-serif" }}>
+              {completed}/{gates.length} complete · {pct}%
+            </div>
+          </div>
+        </div>
+        {completed === gates.length && (
+          <button
+            onClick={() => navigate("/readout")}
+            style={{
+              padding: "6px 14px", background: "#4A5C3A", color: "white",
+              border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            View Readout →
+          </button>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ height: 6, background: "#F0F4EE", borderRadius: 3, marginBottom: 14, overflow: "hidden" }}>
+        <div style={{
+          height: "100%", borderRadius: 3,
+          background: completed === gates.length
+            ? "#4A5C3A"
+            : "linear-gradient(90deg, #4A5C3A, #AAAF55)",
+          width: `${pct}%`,
+          transition: "width 0.4s ease",
+        }}/>
+      </div>
+
+      {/* Gate pills */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {gates.map((gate) => {
+          const done = completionStatus?.[gate.key] ?? false;
+          return (
+            <button
+              key={gate.key}
+              onClick={() => navigate(gate.route)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "5px 10px",
+                background: done ? "#F0F4EE" : "#FAFAFA",
+                border: `1px solid ${done ? "#C8D8C0" : "#EEF0EC"}`,
+                borderRadius: 6, cursor: "pointer",
+                fontSize: 11, fontWeight: done ? 600 : 400,
+                color: done ? "#4A5C3A" : "#9CA89A",
+                fontFamily: "'DM Sans', sans-serif",
+                transition: "all 0.15s",
+              }}
+            >
+              {done ? (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <circle cx="6" cy="6" r="5" fill="#4A5C3A"/>
+                  <path d="M3.5 6l1.5 1.5 3.5-3.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <circle cx="6" cy="6" r="5" stroke="#D0D5CE" strokeWidth="1"/>
+                </svg>
+              )}
+              {gate.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -548,6 +662,9 @@ export default function Dashboard() {
             accent="#B8A94A"
           />
         </div>
+
+        {/* Diagnostic Gates Progress */}
+        {workspaceId && <DiagnosticGatesCard />}
 
         {/* RPE Summary Card */}
         {workspaceId && (
