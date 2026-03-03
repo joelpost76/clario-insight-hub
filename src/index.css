@@ -185,3 +185,53 @@
     @apply text-muted-foreground/50;
   }
 }
+
+/* ─── Print / PDF Export Styles ─── */
+@media print {
+  /* Hide sidebar, nav, and UI chrome */
+  [data-sidebar],
+  nav,
+  header,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Reset page background */
+  body,
+  html {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Full width for content */
+  main,
+  [role="main"] {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Ensure cards don't break across pages */
+  .rounded-lg,
+  [class*="Card"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm 2cm;
+    size: A4;
+  }
+
+  /* Keep the constraint banner dark for impact */
+  .bg-\\[\\#1A2018\\] {
+    background-color: #1A2018 !important;
+    color: #F7F9F5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
