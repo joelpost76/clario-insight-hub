@@ -21,6 +21,8 @@ import {
   ArrowRight,
   Presentation,
   ClipboardList,
+  Printer,
+  Download,
 } from "lucide-react";
 
 interface Finding {
@@ -221,9 +223,20 @@ export default function Readout() {
               Summary of findings and recommended path forward.
             </p>
           </div>
-          <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-            {completedGates}/{gates.length} gates complete
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+              {completedGates}/{gates.length} gates complete
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 print:hidden"
+              onClick={() => window.print()}
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Primary Constraint Banner */}
@@ -520,7 +533,7 @@ export default function Readout() {
         )}
 
         {/* Navigation */}
-        <div className="flex justify-end">
+        <div className="flex justify-end print:hidden">
           <Button variant="outline" onClick={() => navigate("/synthesis")}>
             Back to Synthesis
           </Button>
