@@ -126,15 +126,40 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   const switchWorkspace = async (newWorkspaceId: string) => {
+    // Check if workspace is in the user's available workspaces (member)
     const targetWorkspace = availableWorkspaces.find((ws) => ws.id === newWorkspaceId);
-    if (!targetWorkspace) return;
-
-    setWorkspaceId(newWorkspaceId);
-    setWorkspace(targetWorkspace);
-    localStorage.setItem(WORKSPACE_STORAGE_KEY, newWorkspaceId);
     
-    // Navigate to dashboard to reload with new workspace context
-    navigate("/dashboard");
+    if (targetWorkspace) {
+      setWorkspaceId(newWorkspaceId);
+      setWorkspace(targetWorkspace);
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, newWorkspaceId);
+      navigate("/dashboard");
+      return;
+    }
+
+    // Admin override: fetch any workspace directly from DB
+    if (userRole === "unburnt_admin") {
+      const { data, error } = await supabase
+        .from("workspaces")
+        .select("*, accounts(name)")
+        .eq("id", newWorkspaceId)
+        .maybeSingle();
+
+      if (error || !data) {
+        console.error("Failed to fetch workspace for admin override", error);
+        return;
+      }
+
+      const wsWithAccount: WorkspaceWithAccount = {
+        ...(data as any),
+        account_name: (data as any).accounts?.name,
+      };
+
+      setWorkspaceId(newWorkspaceId);
+      setWorkspace(wsWithAccount);
+      localStorage.setItem(WORKSPACE_STORAGE_KEY, newWorkspaceId);
+      navigate("/dashboard");
+    }
   };
 
   const refreshWorkspace = async () => {
