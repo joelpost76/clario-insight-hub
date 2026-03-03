@@ -20,6 +20,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     "/sipoc": completionStatus.sipoc,
     "/workflow": completionStatus.workflow,
     "/baseline": completionStatus.baseline,
+    "/synthesis": completionStatus.synthesis,
   };
 
   return (
