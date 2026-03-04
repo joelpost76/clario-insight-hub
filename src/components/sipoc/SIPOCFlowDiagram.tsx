@@ -72,7 +72,7 @@ export function SIPOCFlowDiagram({ activeColumn = -1, data }: SIPOCFlowDiagramPr
     <div className="w-full">
       {/* Header */}
       <div className="mb-3">
-        <p className="text-xs text-muted-foreground tracking-wide uppercase font-medium">
+        <p className="text-xs text-foreground/80 tracking-wide uppercase font-semibold">
           How SIPOC maps your workflow
         </p>
       </div>
@@ -123,7 +123,7 @@ export function SIPOCFlowDiagram({ activeColumn = -1, data }: SIPOCFlowDiagramPr
                 </span>
 
                 {/* Description */}
-                <p className="text-[10px] text-muted-foreground text-center leading-tight mb-2">
+                <p className="text-[11px] text-foreground/70 text-center leading-tight mb-2">
                   {col.description}
                 </p>
 
@@ -134,7 +134,7 @@ export function SIPOCFlowDiagram({ activeColumn = -1, data }: SIPOCFlowDiagramPr
                       {items.slice(0, 4).map((item, j) => (
                         <span
                           key={j}
-                          className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium leading-4"
+                          className="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold leading-4"
                           style={{
                             backgroundColor: col.color,
                             color: col.textColor,
@@ -144,13 +144,13 @@ export function SIPOCFlowDiagram({ activeColumn = -1, data }: SIPOCFlowDiagramPr
                         </span>
                       ))}
                       {items.length > 4 && (
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[11px] text-foreground/60">
                           +{items.length - 4}
                         </span>
                       )}
                     </div>
                   ) : (
-                    <p className="text-[10px] text-muted-foreground/60 text-center italic">
+                    <p className="text-[11px] text-foreground/40 text-center italic">
                       {col.examples}
                     </p>
                   )}
@@ -177,8 +177,8 @@ export function SIPOCFlowDiagram({ activeColumn = -1, data }: SIPOCFlowDiagramPr
 
       {/* Bottom insight */}
       <div className="mt-3 px-1">
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          <span className="font-medium text-foreground">Clario uses this map</span> to trace where
+        <p className="text-xs text-foreground/70 leading-relaxed">
+          <span className="font-semibold text-foreground">Clario uses this map</span> to trace where
           work waits, where inputs are missing, and which handoffs create rework — revealing the
           constraint that throttles your throughput.
         </p>
