@@ -107,6 +107,29 @@ export default function HowClarioWorks() {
     return clearTimer;
   }, [isPlaying, activeScene, clearTimer]);
 
+  // Touch swipe gestures
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+      if (dx < 0) goTo((activeScene + 1) % scenes.length);
+      else goTo((activeScene - 1 + scenes.length) % scenes.length);
+    };
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchend", onTouchEnd);
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [activeScene, goTo]);
+
   // Keyboard controls
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
