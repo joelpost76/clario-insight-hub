@@ -6,7 +6,7 @@ import { WalkthroughScene, type SceneData } from "@/components/walkthrough/Walkt
 import { WalkthroughControls } from "@/components/walkthrough/WalkthroughControls";
 import logo from "@/assets/unburnt-clario-logo.png";
 
-const SCENE_DURATION = 6000; // ms
+const SCENE_DURATION = 8000; // ms
 const TICK = 50; // progress tick interval
 
 const scenes: SceneData[] = [
@@ -69,6 +69,7 @@ export default function HowClarioWorks() {
   const [activeScene, setActiveScene] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [finished, setFinished] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -83,6 +84,7 @@ export default function HowClarioWorks() {
       clearTimer();
       setActiveScene(index);
       setProgress(0);
+      setFinished(false);
       if (autoplay) setIsPlaying(true);
     },
     [clearTimer]
@@ -97,7 +99,15 @@ export default function HowClarioWorks() {
       setProgress((prev) => {
         const next = prev + (TICK / SCENE_DURATION) * 100;
         if (next >= 100) {
-          setActiveScene((s) => (s + 1) % scenes.length);
+          setActiveScene((s) => {
+            const nextScene = s + 1;
+            if (nextScene >= scenes.length) {
+              setIsPlaying(false);
+              setFinished(true);
+              return s;
+            }
+            return nextScene;
+          });
           return 0;
         }
         return next;
@@ -119,8 +129,8 @@ export default function HowClarioWorks() {
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
       if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
-      if (dx < 0) goTo((activeScene + 1) % scenes.length);
-      else goTo((activeScene - 1 + scenes.length) % scenes.length);
+      if (dx < 0 && activeScene < scenes.length - 1) goTo(activeScene + 1);
+      else if (dx > 0 && activeScene > 0) goTo(activeScene - 1);
     };
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchend", onTouchEnd);
@@ -135,16 +145,20 @@ export default function HowClarioWorks() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === " " || e.key === "k") {
         e.preventDefault();
-        setIsPlaying((p) => !p);
-      } else if (e.key === "ArrowRight") {
-        goTo((activeScene + 1) % scenes.length);
-      } else if (e.key === "ArrowLeft") {
-        goTo((activeScene - 1 + scenes.length) % scenes.length);
+        if (finished) {
+          goTo(0);
+        } else {
+          setIsPlaying((p) => !p);
+        }
+      } else if (e.key === "ArrowRight" && activeScene < scenes.length - 1) {
+        goTo(activeScene + 1);
+      } else if (e.key === "ArrowLeft" && activeScene > 0) {
+        goTo(activeScene - 1);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeScene, goTo]);
+  }, [activeScene, goTo, finished]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -188,10 +202,21 @@ export default function HowClarioWorks() {
               totalScenes={scenes.length}
               isPlaying={isPlaying}
               progress={progress}
-              onTogglePlay={() => setIsPlaying((p) => !p)}
+              finished={finished}
+              onTogglePlay={() => {
+                if (finished) {
+                  goTo(0);
+                } else {
+                  setIsPlaying((p) => !p);
+                }
+              }}
               onRestart={() => goTo(0)}
-              onPrev={() => goTo((activeScene - 1 + scenes.length) % scenes.length)}
-              onNext={() => goTo((activeScene + 1) % scenes.length)}
+              onPrev={() => {
+                if (activeScene > 0) goTo(activeScene - 1);
+              }}
+              onNext={() => {
+                if (activeScene < scenes.length - 1) goTo(activeScene + 1);
+              }}
               onDotClick={(i) => goTo(i)}
             />
           </div>
