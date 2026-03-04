@@ -180,7 +180,7 @@ export default function HowClarioWorks() {
                 size="lg"
                 className="text-base px-8 py-6 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
               >
-                Find Your Constraint — $7,500
+                Find Your Constraint
               </Button>
             </Link>
           </div>
