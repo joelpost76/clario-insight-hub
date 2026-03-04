@@ -139,9 +139,9 @@ function EntryCard({ entry }: { entry: KnowledgeEntry }) {
           {/* How it works */}
           <section>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">How It Works</h4>
-            <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
-              {entry.howItWorks}
-            </div>
+            <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line"
+              dangerouslySetInnerHTML={{ __html: entry.howItWorks.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>') }}
+            />
           </section>
 
           {/* Calculation methodology */}
