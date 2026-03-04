@@ -6,7 +6,8 @@ interface WalkthroughControlsProps {
   activeScene: number;
   totalScenes: number;
   isPlaying: boolean;
-  progress: number; // 0–100 within current scene
+  progress: number;
+  finished: boolean;
   onTogglePlay: () => void;
   onRestart: () => void;
   onPrev: () => void;
@@ -19,14 +20,19 @@ export function WalkthroughControls({
   totalScenes,
   isPlaying,
   progress,
+  finished,
   onTogglePlay,
   onRestart,
   onPrev,
   onNext,
   onDotClick,
 }: WalkthroughControlsProps) {
-  // Overall progress: completed scenes + current scene progress
-  const overallProgress = ((activeScene + progress / 100) / totalScenes) * 100;
+  const overallProgress = finished
+    ? 100
+    : ((activeScene + progress / 100) / totalScenes) * 100;
+
+  const isFirst = activeScene === 0;
+  const isLast = activeScene === totalScenes - 1;
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-4">
@@ -63,6 +69,7 @@ export function WalkthroughControls({
           variant="ghost"
           size="sm"
           onClick={onPrev}
+          disabled={isFirst}
           className="text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="w-4 h-4 mr-1" />
@@ -70,30 +77,45 @@ export function WalkthroughControls({
         </Button>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onTogglePlay}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRestart}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Restart"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
+          {finished ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRestart}
+              className="text-primary hover:text-primary/80 gap-1.5"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Play Again
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onTogglePlay}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRestart}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Restart"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            </>
+          )}
         </div>
 
         <Button
           variant="ghost"
           size="sm"
           onClick={onNext}
+          disabled={isLast}
           className="text-muted-foreground hover:text-foreground"
         >
           Next
