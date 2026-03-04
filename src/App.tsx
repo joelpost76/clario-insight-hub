@@ -8,6 +8,7 @@ import { RequireWorkspace } from "@/components/RequireWorkspace";
 import { RequireAdmin } from "@/components/RequireAdmin";
 import Auth from "./pages/Auth";
 import GetStarted from "./pages/GetStarted";
+import HowClarioWorks from "./pages/HowClarioWorks";
 import ServiceConfiguration from "./pages/ServiceConfiguration";
 import ThankYou from "./pages/ThankYou";
 import Dashboard from "./pages/Dashboard";
@@ -52,6 +53,7 @@ const App = () => (
         <WorkspaceProvider>
           <Routes>
             <Route path="/get-started" element={<GetStarted />} />
+            <Route path="/how-clario-works" element={<HowClarioWorks />} />
             <Route path="/get-started/configure" element={<ServiceConfiguration />} />
             <Route path="/get-started/thank-you" element={<ThankYou />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
