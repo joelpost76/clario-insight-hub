@@ -42,7 +42,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "workspaces", purpose: "Stores all kickoff scope fields (outcomes, workflows, teams, constraints, dates)" },
     ],
-    lastUpdated: "2026-02-20",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -56,7 +56,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "intake_responses", purpose: "Stores symptom clusters, pain ratings (JSON), TOC answers, tools list, decision bottlenecks, and current metrics" },
     ],
-    lastUpdated: "2026-02-15",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -77,7 +77,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "Single-pass inference with no feedback loop. Quality depends on the completeness and specificity of the intake responses. The AI may hallucinate if intake data is sparse — the `inferredDataQuality` flag helps surface this. The system prompt must be manually updated when domain logic changes.",
-    lastUpdated: "2026-03-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -97,7 +97,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "Same single-pass architecture as Constraint Analysis. No learning. Quality depends on response specificity.",
-    lastUpdated: "2026-01-10",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -117,7 +117,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "Single-pass. No learning. Slightly firmer tone than Flow Stabilization per prompt design.",
-    lastUpdated: "2026-01-25",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -131,7 +131,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "artifacts", purpose: "Stores artifact records (title, type, link_or_file, notes, tags) per workspace" },
     ],
-    lastUpdated: "2025-12-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -145,7 +145,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "interviews", purpose: "Stores interview records (interviewee, role, notes, themes, status) per workspace" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -159,7 +159,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "surveys", purpose: "Stores survey metadata, aggregates, burnout risk, and themes per workspace" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -173,7 +173,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "sipocs", purpose: "Stores SIPOC entries (workflow name, S/I/P/O/C arrays) per workspace" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -187,7 +187,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "workflow_maps", purpose: "Stores workflow maps (steps, handoffs, queues, rework loops as JSON) per workspace" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -201,7 +201,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     dataSources: [
       { type: "database_table", name: "flow_baselines", purpose: "Stores baseline metrics (lead time, throughput, WIP, rework, billing, AR aging) per workspace" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -221,7 +221,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "database_table", name: "findings", purpose: "Consultant-authored findings" },
       { type: "database_table", name: "interviews", purpose: "Interview notes and themes" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -239,7 +239,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "database_table", name: "scope_discipline_state", purpose: "Discipline recommendations" },
       { type: "database_table", name: "flow_baselines", purpose: "Before-state metrics" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   // ─── Add-On Modules ─────────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "database_table", name: "rpe_assessments", purpose: "Stores computed RPE snapshots with all derived metrics and calculation version" },
       { type: "local_calculation", name: "rpeCalculations.ts", purpose: "All RPE formulas — deterministic, no external API" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -278,7 +278,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "database_table", name: "scope_creep_column_map", purpose: "CSV column mapping for data import" },
       { type: "database_table", name: "clients", purpose: "Client record linked to each assessment" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   // ─── Infrastructure ─────────────────────────────────────────────────────────
@@ -297,7 +297,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
     ],
     limitations:
       "No conversation memory. No fine-tuning. No feedback loop. Each request is independent. Output quality is entirely governed by the system prompt and the quality/completeness of the input data. Rate limits and credit limits apply via the Lovable AI gateway.",
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -317,7 +317,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "edge_function", name: "lookup-user-by-email", purpose: "User lookup for membership management" },
       { type: "edge_function", name: "process-pending-invitations", purpose: "Auto-accept pending invitations on login" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -338,7 +338,7 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "edge_function", name: "lookup-user-by-email", purpose: "Find existing users for direct membership add" },
       { type: "edge_function", name: "invite-user", purpose: "Send invitation emails for new users" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 
   {
@@ -355,6 +355,6 @@ export const knowledgeHubEntries: KnowledgeEntry[] = [
       { type: "database_table", name: "workspaces", purpose: "Created when a lead is accepted" },
       { type: "edge_function", name: "create-workspace-from-lead", purpose: "Provisions account + workspace from accepted lead" },
     ],
-    lastUpdated: "2025-06-01",
+    lastUpdated: "2026-03-04",
   },
 ];
