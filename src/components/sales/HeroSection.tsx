@@ -63,8 +63,16 @@ export function HeroSection() {
             className="text-base px-8 py-6 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
             onClick={() => navigate('/get-started/configure')}
           >
-            Find Your Constraint — $7,500
+            Find Your Constraint
             <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            className="text-base px-8 py-6"
+            onClick={() => navigate('/how-clario-works')}
+          >
+            See How It Works
           </Button>
         </div>
 
