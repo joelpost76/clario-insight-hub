@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -11,16 +11,30 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Trash2, GitBranch, Loader2 } from "lucide-react";
 import { SIPOC as SIPOCType } from "@/types/database";
+import { SIPOCFlowDiagram } from "@/components/sipoc/SIPOCFlowDiagram";
+
+const FIELD_TO_COLUMN: Record<string, number> = {
+  suppliers: 0,
+  inputs: 1,
+  process_steps: 2,
+  outputs: 3,
+  customers: 4,
+};
+
+function csvToArray(val: string): string[] {
+  return val ? val.split(",").map((s) => s.trim()).filter(Boolean) : [];
+}
 
 export default function SIPOC() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { workspaceId, refreshCompletionStatus } = useWorkspace();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [records, setRecords] = useState<SIPOCType[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [activeField, setActiveField] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     workflow_name: "",
     suppliers: "",
@@ -31,93 +45,89 @@ export default function SIPOC() {
   });
 
   useEffect(() => {
-    if (workspaceId) {
-      loadSIPOCs();
-    }
+    if (workspaceId) loadSIPOCs();
   }, [workspaceId]);
 
   const loadSIPOCs = async () => {
     if (!workspaceId) return;
-    
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("sipocs")
       .select("*")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false });
-
-    if (data) {
-      setRecords(data as unknown as SIPOCType[]);
-    }
+    if (data) setRecords(data as unknown as SIPOCType[]);
     setLoading(false);
   };
 
   const handleAdd = async () => {
     if (!formData.workflow_name.trim()) {
-      toast({
-        title: "Workflow name required",
-        description: "Please enter a workflow name.",
-        variant: "destructive",
-      });
+      toast({ title: "Workflow name required", description: "Please enter a workflow name.", variant: "destructive" });
       return;
     }
-
     setSaving(true);
-
     const { data, error } = await supabase
       .from("sipocs")
       .insert({
         workspace_id: workspaceId,
         workflow_name: formData.workflow_name,
-        suppliers: formData.suppliers ? formData.suppliers.split(",").map((s) => s.trim()).filter(Boolean) : null,
-        inputs: formData.inputs ? formData.inputs.split(",").map((s) => s.trim()).filter(Boolean) : null,
-        process_steps: formData.process_steps ? formData.process_steps.split(",").map((s) => s.trim()).filter(Boolean) : null,
-        outputs: formData.outputs ? formData.outputs.split(",").map((s) => s.trim()).filter(Boolean) : null,
-        customers: formData.customers ? formData.customers.split(",").map((s) => s.trim()).filter(Boolean) : null,
+        suppliers: csvToArray(formData.suppliers).length ? csvToArray(formData.suppliers) : null,
+        inputs: csvToArray(formData.inputs).length ? csvToArray(formData.inputs) : null,
+        process_steps: csvToArray(formData.process_steps).length ? csvToArray(formData.process_steps) : null,
+        outputs: csvToArray(formData.outputs).length ? csvToArray(formData.outputs) : null,
+        customers: csvToArray(formData.customers).length ? csvToArray(formData.customers) : null,
       })
       .select()
       .single();
 
     if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({
-        title: "SIPOC added",
-        description: `"${formData.workflow_name}" has been added.`,
-      });
+      toast({ title: "SIPOC added", description: `"${formData.workflow_name}" has been added.` });
       setRecords((prev) => [data as unknown as SIPOCType, ...prev]);
       setFormData({ workflow_name: "", suppliers: "", inputs: "", process_steps: "", outputs: "", customers: "" });
       setShowForm(false);
+      setActiveField(null);
       await refreshCompletionStatus();
     }
-
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase
-      .from("sipocs")
-      .delete()
-      .eq("id", id);
-
+    const { error } = await supabase.from("sipocs").delete().eq("id", id);
     if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       setRecords((prev) => prev.filter((r) => r.id !== id));
-      toast({
-        title: "SIPOC removed",
-        description: "The record has been removed.",
-      });
+      toast({ title: "SIPOC removed", description: "The record has been removed." });
       await refreshCompletionStatus();
     }
   };
+
+  // Compute diagram data from either the live form or the first saved record
+  const diagramData = useMemo(() => {
+    if (showForm) {
+      return {
+        suppliers: csvToArray(formData.suppliers),
+        inputs: csvToArray(formData.inputs),
+        process_steps: csvToArray(formData.process_steps),
+        outputs: csvToArray(formData.outputs),
+        customers: csvToArray(formData.customers),
+      };
+    }
+    if (records.length > 0) {
+      const r = records[0];
+      return {
+        suppliers: r.suppliers ?? [],
+        inputs: r.inputs ?? [],
+        process_steps: r.process_steps ?? [],
+        outputs: r.outputs ?? [],
+        customers: r.customers ?? [],
+      };
+    }
+    return undefined;
+  }, [showForm, formData, records]);
+
+  const activeColumn = activeField != null ? (FIELD_TO_COLUMN[activeField] ?? -1) : -1;
 
   if (loading) {
     return (
@@ -145,12 +155,19 @@ export default function SIPOC() {
           </Button>
         </div>
 
+        {/* Interactive flow diagram */}
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <SIPOCFlowDiagram activeColumn={activeColumn} data={diagramData} />
+          </CardContent>
+        </Card>
+
         {showForm && (
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">New SIPOC Record</CardTitle>
               <CardDescription>
-                Map how work flows through your system.
+                Map how work flows through your system. Focus on each column — the diagram above highlights where you are.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -172,6 +189,8 @@ export default function SIPOC() {
                     placeholder="Sales, Client, Vendor, Field lead"
                     rows={2}
                     value={formData.suppliers}
+                    onFocus={() => setActiveField("suppliers")}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => setFormData((prev) => ({ ...prev, suppliers: e.target.value }))}
                   />
                 </div>
@@ -182,6 +201,8 @@ export default function SIPOC() {
                     placeholder="Scope, drawings, budget, selections, schedule constraints"
                     rows={2}
                     value={formData.inputs}
+                    onFocus={() => setActiveField("inputs")}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => setFormData((prev) => ({ ...prev, inputs: e.target.value }))}
                   />
                 </div>
@@ -194,6 +215,8 @@ export default function SIPOC() {
                   placeholder="Handoff, schedule, execute, QC, bill"
                   rows={2}
                   value={formData.process_steps}
+                  onFocus={() => setActiveField("process_steps")}
+                  onBlur={() => setActiveField(null)}
                   onChange={(e) => setFormData((prev) => ({ ...prev, process_steps: e.target.value }))}
                 />
               </div>
@@ -206,6 +229,8 @@ export default function SIPOC() {
                     placeholder="Completed work, invoice, closeout package"
                     rows={2}
                     value={formData.outputs}
+                    onFocus={() => setActiveField("outputs")}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => setFormData((prev) => ({ ...prev, outputs: e.target.value }))}
                   />
                 </div>
@@ -216,13 +241,15 @@ export default function SIPOC() {
                     placeholder="Client, finance, ops, warranty/service"
                     rows={2}
                     value={formData.customers}
+                    onFocus={() => setActiveField("customers")}
+                    onBlur={() => setActiveField(null)}
                     onChange={(e) => setFormData((prev) => ({ ...prev, customers: e.target.value }))}
                   />
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setShowForm(false)}>
+                <Button variant="outline" onClick={() => { setShowForm(false); setActiveField(null); }}>
                   Cancel
                 </Button>
                 <Button onClick={handleAdd} disabled={saving}>
@@ -284,25 +311,16 @@ export default function SIPOC() {
                             { items: record.outputs, isProcess: false },
                             { items: record.customers, isProcess: false },
                           ].map(({ items, isProcess }, idx) => (
-                            <td
-                              key={idx}
-                              className="px-4 py-3 border-r border-border last:border-r-0"
-                            >
+                            <td key={idx} className="px-4 py-3 border-r border-border last:border-r-0">
                               {items && items.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
                                   {items.map((item, i) => (
                                     <span
                                       key={i}
                                       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium leading-5 ${
-                                        isProcess
-                                          ? "text-white"
-                                          : "text-[#1A2018]"
+                                        isProcess ? "text-white" : "text-[#1A2018]"
                                       }`}
-                                      style={{
-                                        backgroundColor: isProcess
-                                          ? "#6b7c3f"
-                                          : "#e8e4dc",
-                                      }}
+                                      style={{ backgroundColor: isProcess ? "#6b7c3f" : "#e8e4dc" }}
                                     >
                                       {item}
                                     </span>
