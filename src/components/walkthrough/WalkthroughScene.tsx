@@ -17,51 +17,53 @@ interface WalkthroughSceneProps {
 
 export function WalkthroughScene({ scene, isActive }: WalkthroughSceneProps) {
   const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(isActive);
   const [bulletReveal, setBulletReveal] = useState<boolean[]>([]);
   const [timeNoteVisible, setTimeNoteVisible] = useState(false);
 
   useEffect(() => {
-    if (!isActive) {
+    if (isActive) {
+      setMounted(true);
+      const enterTimer = setTimeout(() => setVisible(true), 50);
+
+      const bulletTimers = scene.bullets.map((_, i) =>
+        setTimeout(() => {
+          setBulletReveal((prev) => {
+            const next = [...prev];
+            next[i] = true;
+            return next;
+          });
+        }, 600 + i * 200)
+      );
+
+      const timeTimer = setTimeout(
+        () => setTimeNoteVisible(true),
+        600 + scene.bullets.length * 200 + 300
+      );
+
+      return () => {
+        clearTimeout(enterTimer);
+        bulletTimers.forEach(clearTimeout);
+        clearTimeout(timeTimer);
+      };
+    } else {
       setVisible(false);
       setBulletReveal([]);
       setTimeNoteVisible(false);
-      return;
+      const unmountTimer = setTimeout(() => setMounted(false), 500);
+      return () => clearTimeout(unmountTimer);
     }
-
-    // Scene enters
-    const enterTimer = setTimeout(() => setVisible(true), 50);
-
-    // Stagger bullets
-    const bulletTimers = scene.bullets.map((_, i) =>
-      setTimeout(() => {
-        setBulletReveal((prev) => {
-          const next = [...prev];
-          next[i] = true;
-          return next;
-        });
-      }, 600 + i * 200)
-    );
-
-    // Time note last
-    const timeTimer = setTimeout(
-      () => setTimeNoteVisible(true),
-      600 + scene.bullets.length * 200 + 300
-    );
-
-    return () => {
-      clearTimeout(enterTimer);
-      bulletTimers.forEach(clearTimeout);
-      clearTimeout(timeTimer);
-    };
   }, [isActive, scene.bullets.length]);
+
+  if (!mounted && !isActive) return null;
 
   const Icon = scene.icon;
 
   return (
     <div
       className={cn(
-        "absolute inset-0 flex flex-col items-center justify-center text-center px-6 transition-all duration-300",
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        "absolute inset-0 flex flex-col items-center justify-center text-center px-6 transition-all duration-500 ease-in-out",
+        visible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-[0.98] pointer-events-none"
       )}
     >
       {/* Icon */}
